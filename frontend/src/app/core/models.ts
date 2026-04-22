@@ -1,0 +1,78 @@
+export type Role = 'CLIENT' | 'AGENT' | 'SUPERVISEUR' | 'ADMIN';
+
+export interface UserSummary {
+  id: number;
+  fullName: string;
+  email: string;
+  roles: Role[];
+  active: boolean;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: UserSummary;
+}
+
+export type TicketType = 'INCIDENT' | 'DEMANDE';
+export type TicketCategory = 'MATERIEL' | 'LOGICIEL' | 'RESEAU' | 'ACCES' | 'AUTRE';
+export type TicketPriority = 'FAIBLE' | 'MOYENNE' | 'ELEVEE' | 'CRITIQUE';
+export type TicketStatus = 'OUVERT' | 'EN_COURS' | 'EN_ATTENTE' | 'RESOLU' | 'FERME';
+
+export interface TicketComment {
+  id: number;
+  author: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface Ticket {
+  id: number;
+  title: string;
+  description: string;
+  type: TicketType;
+  category: TicketCategory;
+  priority: TicketPriority;
+  status: TicketStatus;
+  createdAt: string;
+  updatedAt: string;
+  slaDeadline: string;
+  archived: boolean;
+  attachmentUrl?: string;
+  satisfactionScore?: number;
+  client: UserSummary;
+  agent?: UserSummary;
+  comments: TicketComment[];
+}
+
+export interface DashboardStats {
+  totalTickets: number;
+  openTickets: number;
+  inProgressTickets: number;
+  waitingTickets: number;
+  resolvedTickets: number;
+  closedTickets: number;
+  averageResolutionHours: number;
+  customerSatisfactionRate: number;
+}
+
+export interface KnowledgeArticle {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  updatedAt: string;
+  authorName: string;
+}
+
+export interface ChatbotReply {
+  answer: string;
+  suggestions: KnowledgeArticle[];
+}
+
+export interface NotificationView {
+  id: number;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}

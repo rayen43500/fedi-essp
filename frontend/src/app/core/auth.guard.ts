@@ -28,7 +28,7 @@ export const roleGuard = (roles: string[]): CanActivateFn => {
       return true;
     }
 
-    router.navigateByUrl('/tickets');
+    router.navigateByUrl('/app/tickets');
     return false;
   };
 };

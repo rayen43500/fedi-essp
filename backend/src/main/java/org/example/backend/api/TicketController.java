@@ -5,6 +5,7 @@ import org.example.backend.api.dto.AuthDtos;
 import org.example.backend.domain.UserAccount;
 import org.example.backend.service.CurrentUserService;
 import org.example.backend.service.TicketService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,6 +45,7 @@ public class TicketController {
     }
 
     @PatchMapping("/{id}/assign")
+    @PreAuthorize("hasAnyRole('AGENT','SUPERVISEUR','ADMIN')")
     public AuthDtos.TicketView assign(@PathVariable Long id, @Valid @RequestBody AuthDtos.AssignTicketRequest request) {
         return ticketService.assign(id, request.agentId());
     }
@@ -67,11 +69,13 @@ public class TicketController {
     }
 
     @PatchMapping("/archive")
+    @PreAuthorize("hasAnyRole('SUPERVISEUR','ADMIN')")
     public int archiveClosedTickets() {
         return ticketService.archiveClosedTickets();
     }
 
     @PatchMapping("/sla/escalate")
+    @PreAuthorize("hasAnyRole('SUPERVISEUR','ADMIN')")
     public int escalateSla() {
         return ticketService.escalateSlaBreaches();
     }

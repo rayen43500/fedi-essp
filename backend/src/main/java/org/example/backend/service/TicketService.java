@@ -11,7 +11,6 @@ import org.example.backend.domain.UserAccount;
 import org.example.backend.repository.TicketCommentRepository;
 import org.example.backend.repository.TicketRepository;
 import org.example.backend.repository.UserRepository;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,7 +75,6 @@ public class TicketService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('AGENT','SUPERVISEUR','ADMIN')")
     public AuthDtos.TicketView assign(Long ticketId, Long agentId) {
         Ticket ticket = findTicket(ticketId);
         UserAccount agent = userRepository.findById(agentId)
@@ -132,7 +130,6 @@ public class TicketService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('SUPERVISEUR','ADMIN')")
     public int archiveClosedTickets() {
         List<Ticket> closed = ticketRepository.findByArchivedFalseOrderByCreatedAtDesc().stream()
                 .filter(t -> t.getStatus() == TicketStatus.FERME)
@@ -146,7 +143,6 @@ public class TicketService {
     }
 
     @Transactional
-    @PreAuthorize("hasAnyRole('SUPERVISEUR','ADMIN')")
     public int escalateSlaBreaches() {
         List<Ticket> breached = ticketRepository.findByStatusNotAndSlaDeadlineBefore(TicketStatus.FERME, Instant.now());
         for (Ticket ticket : breached) {

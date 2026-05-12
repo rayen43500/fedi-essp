@@ -63,15 +63,18 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuthDtos.TicketView> listTickets() {
+    public List<AuthDtos.TicketView> listTickets(UserAccount currentUser) {
         return ticketRepository.findByArchivedFalseOrderByCreatedAtDesc().stream()
+                .filter(ticket -> hasStaffRole(currentUser) || ticket.getClient().getId().equals(currentUser.getId()))
                 .map(this::toView)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public AuthDtos.TicketView getTicket(Long id) {
-        return toView(findTicket(id));
+    public AuthDtos.TicketView getTicket(Long id, UserAccount currentUser) {
+        Ticket ticket = findTicket(id);
+        ensureCanAccess(ticket, currentUser);
+        return toView(ticket);
     }
 
     @Transactional
@@ -89,6 +92,10 @@ public class TicketService {
     @Transactional
     public AuthDtos.TicketView changeStatus(Long ticketId, TicketStatus status, UserAccount actor) {
         Ticket ticket = findTicket(ticketId);
+        ensureCanAccess(ticket, actor);
+        if (!hasStaffRole(actor)) {
+            throw new IllegalArgumentException("Vous n'etes pas autorise a modifier le statut");
+        }
         ticket.setStatus(status);
         ticket.setUpdatedAt(Instant.now());
         Ticket saved = ticketRepository.save(ticket);
@@ -100,6 +107,7 @@ public class TicketService {
     @Transactional
     public AuthDtos.CommentView addComment(Long ticketId, String message, UserAccount author) {
         Ticket ticket = findTicket(ticketId);
+        ensureCanAccess(ticket, author);
         TicketComment comment = new TicketComment();
         comment.setTicket(ticket);
         comment.setAuthor(author);
@@ -189,6 +197,19 @@ public class TicketService {
     private Ticket findTicket(Long id) {
         return ticketRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket introuvable"));
+    }
+
+    private void ensureCanAccess(Ticket ticket, UserAccount user) {
+        if (hasStaffRole(user) || ticket.getClient().getId().equals(user.getId())) {
+            return;
+        }
+        throw new IllegalArgumentException("Ticket introuvable");
+    }
+
+    private boolean hasStaffRole(UserAccount user) {
+        return user.getRoles().contains(Role.AGENT)
+                || user.getRoles().contains(Role.SUPERVISEUR)
+                || user.getRoles().contains(Role.ADMIN);
     }
 
     private AuthDtos.TicketView toView(Ticket ticket) {

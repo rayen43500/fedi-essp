@@ -6,7 +6,7 @@ import { AuthResponse, UserSummary } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly api = 'http://localhost:8080/api/auth';
+  private readonly api = `${this.resolveApiBase()}/auth`;
   private readonly tokenKey = 'support_token';
   private readonly userKey = 'support_user';
 
@@ -62,5 +62,10 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  private resolveApiBase(): string {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    return isLocal ? 'http://localhost:8080/api' : '/api';
   }
 }

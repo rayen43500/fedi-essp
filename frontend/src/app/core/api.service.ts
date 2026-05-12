@@ -4,7 +4,7 @@ import { ChatbotReply, DashboardStats, KnowledgeArticle, NotificationView, Ticke
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly api = 'http://localhost:8080/api';
+  private readonly api = this.resolveApiBase();
 
   constructor(private readonly http: HttpClient) {}
 
@@ -66,5 +66,10 @@ export class ApiService {
 
   markNotificationRead(id: number) {
     return this.http.patch(`${this.api}/notifications/${id}/read`, {});
+  }
+
+  private resolveApiBase(): string {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    return isLocal ? 'http://localhost:8080/api' : '/api';
   }
 }

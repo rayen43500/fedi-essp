@@ -9,97 +9,209 @@ import { AuthService } from '../../core/auth.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   template: `
-    <section class="register-wrap">
-      <div class="card">
-        <h1>Creer un compte client</h1>
-        <p>Inscription rapide pour soumettre et suivre vos tickets.</p>
+    <section class="auth-wrap">
+      <a class="brand" routerLink="/">
+        <img src="/image.png" alt="Topnet" />
+        <span>Support Topnet</span>
+      </a>
 
-        <form [formGroup]="form" (ngSubmit)="submit()">
-          <label>Nom complet</label>
-          <input type="text" formControlName="fullName" placeholder="Votre nom complet" />
+      <div class="auth-grid">
+        <div class="intro">
+          <p class="eyebrow">Compte client</p>
+          <h1>Créez votre accès en quelques secondes.</h1>
+          <p>Vous pourrez ensuite ouvrir un ticket, suivre son statut et ajouter des commentaires depuis le même espace.</p>
+        </div>
 
-          <label>Email</label>
-          <input type="email" formControlName="email" placeholder="exemple@email.com" />
+        <div class="card">
+          <h2>Créer un compte client</h2>
+          <p class="hint">Renseignez vos informations pour accéder au portail.</p>
 
-          <label>Mot de passe</label>
-          <input type="password" formControlName="password" placeholder="Au moins 6 caracteres" />
+          <form [formGroup]="form" (ngSubmit)="submit()">
+            <div class="field">
+              <label for="fullName">Nom complet</label>
+              <input id="fullName" type="text" formControlName="fullName" placeholder="Votre nom complet" autocomplete="name" />
+            </div>
 
-          <button type="submit" [disabled]="loading() || form.invalid">{{ loading() ? 'Creation...' : 'Creer mon compte' }}</button>
-          <small class="error" *ngIf="error()">{{ error() }}</small>
-        </form>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" type="email" formControlName="email" placeholder="exemple@email.com" autocomplete="email" />
+            </div>
 
-        <div class="links">
-          <span>Vous avez deja un compte ?</span>
-          <a routerLink="/login">Se connecter</a>
+            <div class="field">
+              <label for="password">Mot de passe</label>
+              <input id="password" type="password" formControlName="password" placeholder="Au moins 6 caractères" autocomplete="new-password" />
+            </div>
+
+            <button type="submit" [disabled]="loading() || form.invalid">
+              {{ loading() ? 'Création...' : 'Créer mon compte' }}
+            </button>
+            <small class="error" *ngIf="error()">{{ error() }}</small>
+          </form>
+
+          <div class="links">
+            <span>Vous avez déjà un compte ?</span>
+            <a routerLink="/login">Se connecter</a>
+          </div>
         </div>
       </div>
     </section>
   `,
   styles: [
     `
-      .register-wrap {
+      .auth-wrap {
         min-height: 100vh;
+        padding: 1.5rem;
         display: grid;
-        place-items: center;
-        padding: 2rem;
+        align-content: center;
+        gap: 2.5rem;
+        background: linear-gradient(180deg, #ffffff 0%, #eef5fa 100%);
       }
+
+      .brand {
+        position: fixed;
+        top: 1.25rem;
+        left: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--brand-blue-dark);
+        text-decoration: none;
+        font-family: 'Sora', sans-serif;
+        font-weight: 900;
+      }
+
+      .brand img {
+        height: 36px;
+      }
+
+      .auth-grid {
+        width: min(980px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(360px, 440px);
+        gap: 3rem;
+        align-items: center;
+      }
+
+      .eyebrow {
+        color: var(--brand-orange-dark);
+        font-size: 0.78rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.8rem;
+      }
+
+      .intro h1 {
+        font-size: 3rem;
+        line-height: 1.08;
+        max-width: 620px;
+      }
+
+      .intro p:not(.eyebrow) {
+        color: var(--text-secondary);
+        font-size: 1.08rem;
+        line-height: 1.7;
+        margin-top: 1rem;
+        max-width: 540px;
+      }
+
       .card {
-        width: min(500px, 100%);
-        background: rgba(255, 255, 255, 0.94);
-        border-radius: 18px;
-        padding: 2rem;
-        box-shadow: 0 20px 50px rgba(16, 24, 40, 0.16);
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 1.4rem;
+        box-shadow: var(--shadow-md);
       }
-      h1 {
-        margin: 0;
-        font-size: 2rem;
+
+      h2 {
+        font-size: 1.55rem;
       }
-      p {
-        margin-top: 0.4rem;
-        color: #4f5f6f;
+
+      .hint {
+        color: var(--text-secondary);
+        margin-top: 0.35rem;
       }
+
       form {
-        margin-top: 1.4rem;
+        margin-top: 1.3rem;
         display: grid;
-        gap: 0.7rem;
+        gap: 0.9rem;
       }
+
+      .field {
+        display: grid;
+        gap: 0.45rem;
+      }
+
       label {
-        font-size: 0.9rem;
-        color: #223;
+        font-size: 0.88rem;
+        color: var(--text-primary);
+        font-weight: 900;
       }
+
       input {
-        border: 1px solid #c9d4df;
-        border-radius: 10px;
-        padding: 0.75rem 0.85rem;
-        font-size: 1rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 0.78rem 0.9rem;
       }
+
+      input:focus {
+        outline: none;
+        border-color: var(--brand-blue);
+        box-shadow: 0 0 0 4px rgba(0, 89, 163, 0.10);
+      }
+
       button {
-        margin-top: 0.8rem;
+        margin-top: 0.3rem;
+        min-height: 42px;
         border: 0;
-        background: linear-gradient(135deg, #0f766e, #0b4a6b);
+        background: var(--brand-blue);
         color: #fff;
-        border-radius: 10px;
-        padding: 0.8rem 1rem;
-        font-weight: 600;
+        border-radius: var(--radius-md);
+        padding: 0.78rem 1rem;
+        font-weight: 900;
         cursor: pointer;
       }
+
       button:disabled {
-        opacity: 0.72;
+        opacity: 0.58;
+        cursor: not-allowed;
       }
+
       .error {
-        color: #b42318;
+        color: var(--danger);
+        font-weight: 800;
       }
+
       .links {
         margin-top: 1rem;
         display: flex;
-        gap: 0.35rem;
-        align-items: center;
-        color: #4f5f6f;
+        gap: 0.4rem;
+        color: var(--text-secondary);
       }
+
       .links a {
-        color: #0b4a6b;
-        font-weight: 700;
+        color: var(--brand-blue);
+        font-weight: 900;
         text-decoration: none;
+      }
+
+      @media (max-width: 820px) {
+        .brand {
+          position: static;
+          width: min(440px, 100%);
+          margin: 0 auto;
+        }
+
+        .auth-grid {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+
+        .intro h1 {
+          font-size: 2.1rem;
+        }
       }
     `
   ]
@@ -121,7 +233,7 @@ export class RegisterPage {
     });
   }
 
-  submit() {
+  submit(): void {
     if (this.form.invalid) {
       return;
     }
@@ -136,7 +248,7 @@ export class RegisterPage {
       },
       error: (err) => {
         this.loading.set(false);
-        this.error.set(err?.error?.message ?? "Impossible de creer le compte");
+        this.error.set(err?.error?.message ?? 'Impossible de créer le compte');
       }
     });
   }

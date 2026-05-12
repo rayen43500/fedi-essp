@@ -36,12 +36,14 @@ public class TicketController {
 
     @GetMapping
     public List<AuthDtos.TicketView> list() {
-        return ticketService.listTickets();
+        UserAccount currentUser = currentUserService.requireCurrentUser();
+        return ticketService.listTickets(currentUser);
     }
 
     @GetMapping("/{id}")
     public AuthDtos.TicketView get(@PathVariable Long id) {
-        return ticketService.getTicket(id);
+        UserAccount currentUser = currentUserService.requireCurrentUser();
+        return ticketService.getTicket(id, currentUser);
     }
 
     @PatchMapping("/{id}/assign")

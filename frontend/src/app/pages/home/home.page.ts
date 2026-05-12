@@ -8,317 +8,561 @@ import { AuthService } from '../../core/auth.service';
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <nav class="top-nav">
-      <div class="logo-container">
-        <img src="/image.png" alt="Topnet Logo" class="main-logo" />
-        <span class="project-name">Support Topnet</span>
-      </div>
-      <div class="nav-links">
-        <a class="btn-text" routerLink="/login">Connexion</a>
-        <a class="btn primary small" routerLink="/register">Commencer</a>
-      </div>
-    </nav>
-
-    <section class="hero">
-      <div class="hero-content">
-        <div class="badge-container">
-          <span class="badge">Nouveau : Assistant IA Intégré</span>
+    <main class="home">
+      <nav class="top-nav" aria-label="Navigation publique">
+        <a class="logo-container" routerLink="/">
+          <img src="/image.png" alt="Topnet" class="main-logo" />
+          <span>Support Topnet</span>
+        </a>
+        <div class="nav-links">
+          <a class="btn-text" routerLink="/login">Connexion</a>
+          <a class="btn primary small" routerLink="/register">Créer un compte</a>
         </div>
-        <h1>L'excellence du support technique pour <span class="text-gradient">Topnet</span>.</h1>
-        <p class="lead">
-          Gérez vos incidents, suivez vos demandes et optimisez la satisfaction client avec une plateforme ITSM moderne et intelligente, conçue sur mesure.
-        </p>
+      </nav>
 
-        <div class="cta-group">
-          <a class="btn primary large" [routerLink]="primaryLink()">
-            {{ primaryText() }}
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
-          </a>
-          <a class="btn secondary large" routerLink="/knowledge">
-            Base de connaissances
-          </a>
+      <section class="hero">
+        <div class="hero-content">
+          <p class="eyebrow">Portail support et suivi SLA</p>
+          <h1>Support Topnet, clair pour les clients et efficace pour les équipes.</h1>
+          <p class="lead">
+            Centralisez les tickets, suivez les priorités et donnez des réponses plus utiles sans perdre le contact humain.
+          </p>
+
+          <div class="cta-group">
+            <a class="btn primary large" [routerLink]="primaryLink()">
+              {{ primaryText() }}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+            </a>
+            <a class="btn secondary large" [routerLink]="knowledgeLink()">Consulter les guides</a>
+          </div>
+
+          <dl class="stats" aria-label="Indicateurs clés">
+            <div>
+              <dt>24/7</dt>
+              <dd>Demandes centralisées</dd>
+            </div>
+            <div>
+              <dt>SLA</dt>
+              <dd>Priorités visibles</dd>
+            </div>
+            <div>
+              <dt>4 rôles</dt>
+              <dd>Client, agent, superviseur, admin</dd>
+            </div>
+          </dl>
         </div>
 
-        <div class="stats">
-          <div class="stat-item">
-            <strong>24/7</strong>
-            <span>Disponibilité</span>
+        <div class="hero-visual" aria-label="Aperçu de la plateforme">
+          <div class="browser-bar">
+            <span></span>
+            <span></span>
+            <span></span>
+            <strong>support.topnet.local</strong>
           </div>
-          <div class="stat-item">
-            <strong>< 10min</strong>
-            <span>Temps de réponse</span>
-          </div>
-          <div class="stat-item">
-            <strong>100%</strong>
-            <span>Cloud & Sécurisé</span>
+          <div class="support-preview">
+            <aside>
+              <img src="/image.png" alt="" />
+              <span class="nav-line active"></span>
+              <span class="nav-line"></span>
+              <span class="nav-line short"></span>
+            </aside>
+            <section>
+              <div class="preview-header">
+                <div>
+                  <span>Ticket #1284</span>
+                  <strong>Connexion réseau instable</strong>
+                </div>
+                <em>En cours</em>
+              </div>
+              <div class="timeline">
+                <article>
+                  <span></span>
+                  <div>
+                    <strong>Client</strong>
+                    <p>Incident créé avec priorité élevée.</p>
+                  </div>
+                </article>
+                <article>
+                  <span></span>
+                  <div>
+                    <strong>Agent support</strong>
+                    <p>Diagnostic lancé, guide associé automatiquement.</p>
+                  </div>
+                </article>
+              </div>
+              <div class="preview-grid">
+                <div><strong>8h</strong><span>SLA restant</span></div>
+                <div><strong>5/5</strong><span>Satisfaction</span></div>
+              </div>
+            </section>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="hero-visual">
-        <div class="visual-wrapper">
-          <div class="floating-card c1">
-            <div class="icon">🎟️</div>
-            <div class="text">Ticket Résolu</div>
-          </div>
-          <div class="floating-card c2">
-            <div class="icon">🤖</div>
-            <div class="text">IA Active</div>
-          </div>
-          <img src="/image.png" alt="Hero Illustration" class="hero-img" />
-          <div class="glow"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="features">
-      <div class="feature-card">
-        <h3>Gestion de Tickets</h3>
-        <p>Workflow intelligent de l'ouverture à la résolution avec suivi en temps réel.</p>
-      </div>
-      <div class="feature-card">
-        <h3>Chatbot Intelligent</h3>
-        <p>Réponses automatiques instantanées basées sur votre base de connaissances.</p>
-      </div>
-      <div class="feature-card">
-        <h3>Dashboard Analytique</h3>
-        <p>Visualisez vos performances et SLA à travers des graphiques interactifs.</p>
-      </div>
-    </section>
+      <section class="features" aria-label="Fonctions principales">
+        <article>
+          <span class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v2a3 3 0 0 0 0 6v2a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-2a3 3 0 0 0 0-6V7Z"/></svg>
+          </span>
+          <h2>Tickets structurés</h2>
+          <p>Les demandes arrivent avec catégorie, priorité, agent et statut lisibles dès le premier coup d’œil.</p>
+        </article>
+        <article>
+          <span class="feature-icon orange">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </span>
+          <h2>Guides intégrés</h2>
+          <p>La base de connaissances accompagne les clients et réduit les réponses répétitives pour les agents.</p>
+        </article>
+        <article>
+          <span class="feature-icon green">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-4 4"/></svg>
+          </span>
+          <h2>Pilotage opérationnel</h2>
+          <p>Les superviseurs gardent une vue nette sur les volumes, les délais et la satisfaction.</p>
+        </article>
+      </section>
+    </main>
   `,
   styles: [
     `
-      :host {
-        display: block;
+      .home {
         min-height: 100vh;
-        background: #fff;
+        background: linear-gradient(180deg, #ffffff 0%, #f4f8fb 100%);
       }
+
       .top-nav {
+        max-width: var(--container);
+        margin: 0 auto;
+        min-height: 78px;
+        padding: 0 1.5rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1.5rem 5%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 10;
       }
+
       .logo-container {
         display: flex;
         align-items: center;
         gap: 0.75rem;
+        color: var(--brand-blue-dark);
+        text-decoration: none;
+        font-family: 'Sora', sans-serif;
+        font-weight: 900;
       }
+
       .main-logo {
-        height: 40px;
+        height: 38px;
         width: auto;
       }
-      .project-name {
-        font-family: 'Sora', sans-serif;
-        font-weight: 800;
-        font-size: 1.25rem;
-        color: var(--brand-blue);
-      }
-      .nav-links {
+
+      .nav-links,
+      .cta-group {
         display: flex;
         align-items: center;
-        gap: 1.5rem;
+        gap: 0.85rem;
       }
+
       .btn-text {
         text-decoration: none;
         color: var(--text-secondary);
-        font-weight: 600;
-        transition: color 0.2s;
+        font-weight: 800;
       }
+
       .btn-text:hover {
         color: var(--brand-blue);
       }
 
       .hero {
-        padding: 120px 5% 60px;
-        display: grid;
-        grid-template-columns: 1.2fr 0.8fr;
-        gap: 4rem;
-        align-items: center;
-        max-width: 1400px;
+        max-width: var(--container);
         margin: 0 auto;
+        padding: 4.8rem 1.5rem 4rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.98fr);
+        gap: 4.5rem;
+        align-items: center;
       }
+
       .hero-content {
-        z-index: 1;
+        max-width: 670px;
       }
-      .badge-container {
-        margin-bottom: 1.5rem;
+
+      .eyebrow {
+        display: inline-flex;
+        padding: 0.42rem 0.7rem;
+        border-radius: var(--radius-sm);
+        background: var(--brand-orange-soft);
+        color: var(--brand-orange-dark);
+        font-size: 0.78rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 1.2rem;
       }
-      .badge {
-        background: var(--brand-orange-light);
-        color: var(--brand-orange);
-        padding: 0.5rem 1rem;
-        border-radius: 100px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        border: 1px solid rgba(243, 112, 33, 0.2);
-      }
+
       h1 {
-        font-size: clamp(2.5rem, 5vw, 4.5rem);
-        line-height: 1.1;
-        margin-bottom: 1.5rem;
-        color: #0f172a;
+        color: var(--text-primary);
+        font-size: 4rem;
+        line-height: 1.03;
+        max-width: 780px;
       }
-      .text-gradient {
-        background: linear-gradient(90deg, var(--brand-blue), var(--brand-orange));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
+
       .lead {
-        font-size: 1.25rem;
         color: var(--text-secondary);
-        margin-bottom: 2.5rem;
-        max-width: 600px;
+        font-size: 1.18rem;
+        line-height: 1.65;
+        max-width: 620px;
+        margin: 1.4rem 0 2rem;
       }
-      .cta-group {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 3rem;
-      }
+
       .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.5rem;
-        border-radius: 12px;
-        font-weight: 700;
+        gap: 0.55rem;
+        min-height: 42px;
+        border-radius: var(--radius-md);
+        font-weight: 900;
         text-decoration: none;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
       }
+
       .btn.primary {
         background: var(--brand-blue);
-        color: white;
-        box-shadow: 0 10px 15px -3px rgba(0, 89, 163, 0.3);
+        color: #fff;
+        box-shadow: 0 12px 28px rgba(0, 89, 163, 0.22);
       }
+
       .btn.primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 20px 25px -5px rgba(0, 89, 163, 0.4);
+        transform: translateY(-1px);
+        box-shadow: 0 16px 34px rgba(0, 89, 163, 0.28);
       }
+
       .btn.secondary {
-        background: white;
+        background: #fff;
         color: var(--brand-blue);
-        border: 2px solid var(--brand-blue-light);
+        border: 1px solid var(--line);
       }
+
       .btn.secondary:hover {
-        background: var(--brand-blue-light);
+        background: var(--brand-blue-soft);
       }
-      .btn.small { padding: 0.5rem 1.25rem; font-size: 0.9rem; }
-      .btn.large { padding: 1rem 2rem; font-size: 1.1rem; }
+
+      .btn.small {
+        padding: 0.55rem 1rem;
+        font-size: 0.92rem;
+      }
+
+      .btn.large {
+        padding: 0.9rem 1.25rem;
+        font-size: 1rem;
+      }
 
       .stats {
-        display: flex;
-        gap: 3rem;
-        border-top: 1px solid #e2e8f0;
-        padding-top: 2rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+        margin-top: 2.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--line);
       }
-      .stat-item {
-        display: flex;
-        flex-direction: column;
+
+      .stats div {
+        display: grid;
+        gap: 0.2rem;
       }
-      .stat-item strong {
-        font-size: 1.5rem;
-        color: var(--brand-blue);
+
+      .stats dt {
         font-family: 'Sora', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 900;
+        color: var(--brand-blue-dark);
       }
-      .stat-item span {
+
+      .stats dd {
+        color: var(--text-muted);
         font-size: 0.9rem;
-        color: var(--text-secondary);
       }
 
       .hero-visual {
-        position: relative;
-        display: flex;
-        justify-content: center;
+        border-radius: var(--radius-lg);
+        background: #fff;
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
       }
-      .visual-wrapper {
-        position: relative;
-        width: 100%;
-        max-width: 500px;
-      }
-      .hero-img {
-        width: 100%;
-        height: auto;
-        border-radius: 24px;
-        position: relative;
-        z-index: 2;
-      }
-      .glow {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 120%;
-        height: 120%;
-        background: radial-gradient(circle, rgba(0, 89, 163, 0.15), transparent 70%);
-        z-index: 1;
-      }
-      .floating-card {
-        position: absolute;
-        background: white;
-        padding: 1rem;
-        border-radius: 16px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+      .browser-bar {
+        height: 48px;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        z-index: 3;
-        animation: float 4s ease-in-out infinite;
+        gap: 0.5rem;
+        padding: 0 1rem;
+        border-bottom: 1px solid var(--line);
+        background: #f8fafc;
       }
-      .floating-card .icon { font-size: 1.5rem; }
-      .floating-card .text { font-weight: 700; color: #1e293b; }
-      .c1 { top: 10%; right: -5%; animation-delay: 0s; }
-      .c2 { bottom: 20%; left: -10%; animation-delay: 2s; }
 
-      @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-20px); }
+      .browser-bar span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #cbd5e1;
+      }
+
+      .browser-bar span:first-child {
+        background: #f97316;
+      }
+
+      .browser-bar strong {
+        margin-left: 0.5rem;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        font-weight: 800;
+      }
+
+      .support-preview {
+        display: grid;
+        grid-template-columns: 112px 1fr;
+        min-height: 420px;
+      }
+
+      .support-preview aside {
+        padding: 1.25rem;
+        background: #082b49;
+        display: grid;
+        align-content: start;
+        gap: 1rem;
+      }
+
+      .support-preview aside img {
+        width: 56px;
+        margin-bottom: 1rem;
+      }
+
+      .nav-line {
+        height: 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.28);
+      }
+
+      .nav-line.active {
+        background: #fff;
+      }
+
+      .nav-line.short {
+        width: 64%;
+      }
+
+      .support-preview section {
+        padding: 1.5rem;
+        display: grid;
+        gap: 1.25rem;
+        align-content: start;
+      }
+
+      .preview-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .preview-header span {
+        display: block;
+        color: var(--brand-blue);
+        font-size: 0.78rem;
+        font-weight: 900;
+        margin-bottom: 0.35rem;
+      }
+
+      .preview-header strong {
+        font-family: 'Sora', sans-serif;
+        font-size: 1.18rem;
+      }
+
+      .preview-header em {
+        height: fit-content;
+        padding: 0.32rem 0.62rem;
+        border-radius: 999px;
+        background: var(--brand-blue-soft);
+        color: var(--brand-blue);
+        font-style: normal;
+        font-size: 0.78rem;
+        font-weight: 900;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .timeline article {
+        display: grid;
+        grid-template-columns: 12px 1fr;
+        gap: 0.9rem;
+      }
+
+      .timeline article > span {
+        width: 12px;
+        height: 12px;
+        margin-top: 0.35rem;
+        border-radius: 50%;
+        background: var(--brand-orange);
+      }
+
+      .timeline strong {
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+
+      .timeline p {
+        color: var(--text-secondary);
+        font-size: 0.94rem;
+        line-height: 1.45;
+      }
+
+      .preview-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      .preview-grid div {
+        padding: 1rem;
+        background: var(--surface-soft);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--line);
+      }
+
+      .preview-grid strong {
+        display: block;
+        font-family: 'Sora', sans-serif;
+        color: var(--brand-blue-dark);
+        font-size: 1.3rem;
+      }
+
+      .preview-grid span {
+        color: var(--text-muted);
+        font-size: 0.85rem;
       }
 
       .features {
+        max-width: var(--container);
+        margin: 0 auto;
+        padding: 0 1.5rem 5rem;
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 2rem;
-        padding: 80px 5%;
-        max-width: 1400px;
-        margin: 0 auto;
-      }
-      .feature-card {
-        padding: 2rem;
-        border-radius: 20px;
-        background: var(--brand-blue-light);
-        transition: transform 0.3s;
-      }
-      .feature-card:hover {
-        transform: translateY(-5px);
-      }
-      .feature-card h3 {
-        color: var(--brand-blue);
-        margin-bottom: 1rem;
-        font-size: 1.5rem;
-      }
-      .feature-card p {
-        color: var(--text-secondary);
+        gap: 1rem;
       }
 
-      @media (max-width: 1024px) {
-        .hero { grid-template-columns: 1fr; text-align: center; }
-        .hero-content { display: flex; flex-direction: column; align-items: center; }
-        .lead { margin-left: auto; margin-right: auto; }
-        .cta-group { justify-content: center; }
-        .stats { justify-content: center; }
-        .features { grid-template-columns: 1fr; }
+      .features article {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 1.4rem;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .feature-icon {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: var(--radius-md);
+        background: var(--brand-blue-soft);
+        color: var(--brand-blue);
+        margin-bottom: 1.1rem;
+      }
+
+      .feature-icon.orange {
+        background: var(--brand-orange-soft);
+        color: var(--brand-orange-dark);
+      }
+
+      .feature-icon.green {
+        background: var(--success-soft);
+        color: var(--success);
+      }
+
+      .features h2 {
+        font-size: 1.12rem;
+        margin-bottom: 0.55rem;
+      }
+
+      .features p {
+        color: var(--text-secondary);
+        line-height: 1.55;
+      }
+
+      @media (max-width: 980px) {
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 2.5rem;
+          padding-top: 3rem;
+        }
+
+        h1 {
+          font-size: 3rem;
+        }
+
+        .features {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .top-nav {
+          min-height: auto;
+          padding-top: 1rem;
+          align-items: flex-start;
+          gap: 1rem;
+        }
+
+        .nav-links {
+          gap: 0.5rem;
+        }
+
+        .logo-container span {
+          display: none;
+        }
+
+        .hero {
+          padding-top: 2.2rem;
+        }
+
+        h1 {
+          font-size: 2.35rem;
+        }
+
+        .lead {
+          font-size: 1rem;
+        }
+
+        .cta-group,
+        .stats {
+          grid-template-columns: 1fr;
+          align-items: stretch;
+        }
+
+        .cta-group {
+          display: grid;
+        }
+
+        .support-preview {
+          grid-template-columns: 1fr;
+        }
+
+        .support-preview aside {
+          display: none;
+        }
       }
     `
   ]
 })
 export class HomePage {
   readonly primaryLink = computed(() => (this.auth.isAuthenticated() ? '/app/dashboard' : '/login'));
+  readonly knowledgeLink = computed(() => (this.auth.isAuthenticated() ? '/app/knowledge' : '/login'));
   readonly primaryText = computed(() => (this.auth.isAuthenticated() ? 'Accéder à mon espace' : 'Démarrer maintenant'));
 
   constructor(private readonly auth: AuthService) {}

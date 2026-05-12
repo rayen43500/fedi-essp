@@ -10,79 +10,103 @@ import { NotificationView } from '../core/models';
   standalone: true,
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="layout">
+    <div class="layout" [class.menu-open]="menuOpen()">
+      <button class="backdrop" type="button" aria-label="Fermer le menu" (click)="closeMenu()"></button>
+
       <aside>
         <div class="brand">
           <img src="/image.png" alt="Topnet" class="logo" />
           <div class="brand-text">
-            <strong>Support</strong>
+            <strong>Support Desk</strong>
             <span>Topnet</span>
           </div>
         </div>
 
-        <nav>
-          <a routerLink="/app/dashboard" routerLinkActive="active" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'AGENT', 'CLIENT'])">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            Dashboard
+        <nav aria-label="Navigation principale">
+          <a routerLink="/app/dashboard" routerLinkActive="active" (click)="closeMenu()" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'AGENT', 'CLIENT'])">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Tableau de bord
           </a>
-          <a routerLink="/app/tickets" routerLinkActive="active" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'AGENT', 'CLIENT'])">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17.5a2.5 2.5 0 0 1 2.5-2.5H20a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H4.5A2.5 2.5 0 0 1 2 18.5v-1Z"/><path d="M16 11.5a4.5 4.5 0 0 0-4.5-4.5H4.5A2.5 2.5 0 0 0 2 9.5v1.5a2.5 2.5 0 0 0 2.5 2.5H11"/><path d="M16 5V2"/></svg>
+          <a routerLink="/app/tickets" routerLinkActive="active" (click)="closeMenu()" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'AGENT', 'CLIENT'])">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v2a3 3 0 0 0 0 6v2a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-2a3 3 0 0 0 0-6V7Z"/><path d="M9 9h6M9 15h4"/></svg>
             Tickets
           </a>
-          <a routerLink="/app/knowledge" routerLinkActive="active" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'AGENT', 'CLIENT'])">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            Base de connaissances
+          <a routerLink="/app/knowledge" routerLinkActive="active" (click)="closeMenu()" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'AGENT', 'CLIENT'])">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Guides
           </a>
-          <a routerLink="/app/chatbot" routerLinkActive="active" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'AGENT', 'CLIENT'])">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"/><circle cx="17" cy="7" r="5"/></svg>
-            Assistant IA
+          <a routerLink="/app/chatbot" routerLinkActive="active" (click)="closeMenu()" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR', 'AGENT', 'CLIENT'])">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/><path d="M8 10h8M8 14h5"/></svg>
+            Assistant support
           </a>
-          <a routerLink="/app/users" routerLinkActive="active" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR'])">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <a routerLink="/app/users" routerLinkActive="active" (click)="closeMenu()" *ngIf="auth.hasAnyRole(['ADMIN', 'SUPERVISEUR'])">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Utilisateurs
           </a>
         </nav>
 
-        <div class="aside-footer">
-          <button class="logout-btn" (click)="logout()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Déconnexion
-          </button>
+        <div class="aside-note">
+          <span>Priorité</span>
+          <strong>SLA et tickets critiques visibles en premier.</strong>
         </div>
+
+        <button class="logout-btn" type="button" (click)="logout()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+          Déconnexion
+        </button>
       </aside>
 
       <main>
         <header>
-          <div class="user-info">
-            <div class="avatar">{{ auth.currentUser()?.fullName?.charAt(0) }}</div>
-            <div>
-              <strong>{{ auth.currentUser()?.fullName }}</strong>
-              <span>{{ auth.currentUser()?.roles?.join(', ') }}</span>
+          <div class="header-left">
+            <button class="menu-btn" type="button" aria-label="Ouvrir le menu" (click)="menuOpen.set(true)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <div class="page-kicker">
+              <span>Espace sécurisé</span>
+              <strong>Support Topnet</strong>
             </div>
           </div>
-          <div class="actions">
-            <button class="notif-btn" (click)="reloadNotifications()">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+
+          <div class="header-actions">
+            <button class="notif-btn" type="button" aria-label="Voir les notifications" (click)="toggleNotifications()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               <span class="badge" *ngIf="notifications().length">{{ notifications().length }}</span>
             </button>
+
+            <div class="user-info">
+              <div class="avatar">{{ userInitial() }}</div>
+              <div>
+                <strong>{{ auth.currentUser()?.fullName }}</strong>
+                <span>{{ auth.currentUser()?.roles?.join(', ') }}</span>
+              </div>
+            </div>
           </div>
         </header>
 
-        <div class="notif-panel" *ngIf="notifications().length">
+        <section class="notif-panel" *ngIf="notificationsOpen()">
           <div class="notif-header">
-            <h3>Notifications récentes</h3>
-            <button (click)="notifications.set([])">Tout marquer comme lu</button>
+            <div>
+              <span>Notifications</span>
+              <h3>{{ notifications().length ? 'À traiter' : 'Aucune alerte' }}</h3>
+            </div>
+            <button type="button" (click)="markAllRead()" [disabled]="!notifications().length">Tout lire</button>
           </div>
-          <div class="notif-scroll">
+          <div class="notif-scroll" *ngIf="notifications().length; else emptyNotifications">
             <article *ngFor="let n of notifications()">
-              <div class="notif-icon">🔔</div>
+              <div class="notif-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+              </div>
               <div class="notif-content">
                 <strong>{{ n.title }}</strong>
                 <p>{{ n.message }}</p>
               </div>
             </article>
           </div>
-        </div>
+          <ng-template #emptyNotifications>
+            <p class="notif-empty">Tout est à jour.</p>
+          </ng-template>
+        </section>
 
         <div class="page-content">
           <router-outlet />
@@ -95,200 +119,385 @@ import { NotificationView } from '../core/models';
       .layout {
         min-height: 100vh;
         display: grid;
-        grid-template-columns: 280px 1fr;
-        background: #f8fafc;
+        grid-template-columns: 272px minmax(0, 1fr);
+        background: var(--bg-app);
       }
+
       aside {
-        background: #002d51;
+        background: #082b49;
         color: #fff;
-        padding: 2rem 1.5rem;
+        padding: 1.4rem;
         display: flex;
         flex-direction: column;
+        gap: 1.25rem;
         position: sticky;
         top: 0;
         height: 100vh;
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
       }
+
       .brand {
         display: flex;
         align-items: center;
-        gap: 1rem;
-        margin-bottom: 3rem;
+        gap: 0.85rem;
+        padding: 0.45rem 0.25rem 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
       }
+
       .logo {
-        height: 36px;
+        height: 34px;
         width: auto;
+        object-fit: contain;
       }
+
       .brand-text {
-        display: flex;
-        flex-direction: column;
-        line-height: 1.2;
+        display: grid;
+        line-height: 1.15;
       }
-      .brand-text strong { font-size: 1.1rem; color: #fff; }
-      .brand-text span { font-size: 0.9rem; color: var(--brand-orange); font-weight: 700; }
+
+      .brand-text strong {
+        font-family: 'Sora', sans-serif;
+        font-size: 1rem;
+      }
+
+      .brand-text span {
+        color: #ffae72;
+        font-size: 0.82rem;
+        font-weight: 800;
+      }
 
       nav {
         display: grid;
-        gap: 0.5rem;
+        gap: 0.35rem;
         flex: 1;
       }
+
       nav a {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        color: #94a3b8;
+        min-height: 44px;
+        color: #bdd0e0;
         text-decoration: none;
-        padding: 0.85rem 1rem;
-        border-radius: 12px;
-        font-weight: 600;
-        transition: all 0.2s;
+        padding: 0.72rem 0.78rem;
+        border-radius: var(--radius-md);
+        font-weight: 800;
+        transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
       }
+
       nav a:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.08);
         color: #fff;
       }
+
       nav a.active {
-        background: var(--brand-blue);
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(0, 89, 163, 0.3);
+        background: #ffffff;
+        color: var(--brand-blue-dark);
+        box-shadow: var(--shadow-sm);
       }
-      
-      .aside-footer {
-        margin-top: 2rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+      .aside-note {
+        display: grid;
+        gap: 0.25rem;
+        padding: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.06);
       }
+
+      .aside-note span {
+        color: #ffbc88;
+        font-size: 0.72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .aside-note strong {
+        font-size: 0.86rem;
+        line-height: 1.35;
+      }
+
       .logout-btn {
-        width: 100%;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #f87171;
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        font-weight: 600;
+        justify-content: center;
+        gap: 0.65rem;
+        min-height: 42px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #ffd4d2;
+        padding: 0.72rem 1rem;
+        border-radius: var(--radius-md);
+        font-weight: 800;
         cursor: pointer;
-        transition: all 0.2s;
       }
+
       .logout-btn:hover {
-        background: rgba(248, 113, 113, 0.1);
-        border-color: #f87171;
+        background: rgba(194, 65, 61, 0.18);
       }
 
       main {
-        padding: 0;
+        min-width: 0;
+        position: relative;
         display: flex;
         flex-direction: column;
       }
+
       header {
-        background: #fff;
-        padding: 1rem 2rem;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(251, 252, 254, 0.92);
+        backdrop-filter: blur(14px);
+        min-height: 72px;
+        padding: 0 2rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--line);
       }
+
+      .header-left,
+      .header-actions,
       .user-info {
         display: flex;
         align-items: center;
         gap: 1rem;
       }
-      .avatar {
-        width: 40px;
-        height: 40px;
-        background: var(--brand-blue-light);
-        color: var(--brand-blue);
-        border-radius: 12px;
-        display: flex;
+
+      .menu-btn,
+      .notif-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--text-primary);
+        display: none;
         align-items: center;
         justify-content: center;
-        font-weight: 800;
-        font-size: 1.2rem;
+        cursor: pointer;
       }
-      .user-info strong { display: block; color: #1e293b; }
-      .user-info span { font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
 
       .notif-btn {
-        background: #f1f5f9;
-        border: none;
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #64748b;
-        cursor: pointer;
         position: relative;
-        transition: all 0.2s;
       }
-      .notif-btn:hover { background: #e2e8f0; color: #1e293b; }
-      .notif-btn .badge {
+
+      .notif-btn:hover,
+      .menu-btn:hover {
+        border-color: var(--line-strong);
+        background: var(--surface-soft);
+      }
+
+      .badge {
         position: absolute;
         top: -5px;
         right: -5px;
-        background: #ef4444;
+        min-width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        background: var(--brand-orange);
         color: #fff;
-        font-size: 0.7rem;
-        padding: 2px 6px;
-        border-radius: 100px;
+        font-size: 0.72rem;
+        font-weight: 900;
+        border-radius: 999px;
         border: 2px solid #fff;
       }
 
+      .page-kicker {
+        display: grid;
+        line-height: 1.2;
+      }
+
+      .page-kicker span,
+      .user-info span {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .page-kicker strong,
+      .user-info strong {
+        color: var(--text-primary);
+        font-weight: 900;
+      }
+
+      .avatar {
+        width: 40px;
+        height: 40px;
+        background: var(--brand-blue-soft);
+        color: var(--brand-blue);
+        border-radius: var(--radius-md);
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+      }
+
       .notif-panel {
-        position: absolute;
-        top: 70px;
-        right: 20px;
-        width: 360px;
+        position: fixed;
+        top: 84px;
+        right: 24px;
+        width: min(390px, calc(100vw - 32px));
         background: #fff;
-        border-radius: 20px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        z-index: 100;
-        border: 1px solid #e2e8f0;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        z-index: 90;
+        border: 1px solid var(--line);
         overflow: hidden;
       }
+
       .notif-header {
-        padding: 1.25rem;
-        border-bottom: 1px solid #f1f5f9;
+        padding: 1rem;
+        border-bottom: 1px solid var(--line);
         display: flex;
         justify-content: space-between;
         align-items: center;
-      }
-      .notif-header h3 { font-size: 1rem; color: #1e293b; }
-      .notif-header button { background: none; border: none; color: var(--brand-blue); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
-      
-      .notif-scroll { max-height: 400px; overflow-y: auto; }
-      .notif-scroll article {
-        padding: 1rem 1.25rem;
-        display: flex;
         gap: 1rem;
-        border-bottom: 1px solid #f1f5f9;
-        transition: background 0.2s;
+      }
+
+      .notif-header span {
+        display: block;
+        color: var(--text-muted);
+        font-size: 0.72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .notif-header h3 {
+        font-size: 1rem;
+        color: var(--text-primary);
+      }
+
+      .notif-header button {
+        border: 1px solid var(--line);
+        background: var(--surface-soft);
+        color: var(--brand-blue);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.82rem;
+        font-weight: 900;
         cursor: pointer;
       }
-      .notif-scroll article:hover { background: #f8fafc; }
-      .notif-icon { width: 32px; height: 32px; background: var(--brand-blue-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
-      .notif-content strong { display: block; font-size: 0.9rem; color: #1e293b; margin-bottom: 0.25rem; }
-      .notif-content p { font-size: 0.85rem; color: #64748b; line-height: 1.4; }
+
+      .notif-header button:disabled {
+        color: var(--text-muted);
+        cursor: not-allowed;
+      }
+
+      .notif-scroll {
+        max-height: 390px;
+        overflow-y: auto;
+      }
+
+      .notif-scroll article {
+        padding: 1rem;
+        display: flex;
+        gap: 0.8rem;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .notif-scroll article:last-child {
+        border-bottom: 0;
+      }
+
+      .notif-icon {
+        width: 34px;
+        height: 34px;
+        color: var(--brand-blue);
+        background: var(--brand-blue-soft);
+        border-radius: var(--radius-sm);
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+      }
+
+      .notif-content strong {
+        display: block;
+        font-size: 0.92rem;
+        margin-bottom: 0.22rem;
+      }
+
+      .notif-content p,
+      .notif-empty {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.45;
+      }
+
+      .notif-empty {
+        padding: 1rem;
+      }
 
       .page-content {
         padding: 2rem;
         flex: 1;
-        overflow-y: auto;
       }
 
-      @media (max-width: 1024px) {
-        .layout { grid-template-columns: 1fr; }
-        aside { position: fixed; left: -100%; transition: left 0.3s; z-index: 200; }
-        aside.open { left: 0; }
+      .backdrop {
+        display: none;
+      }
+
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        aside {
+          position: fixed;
+          z-index: 120;
+          width: min(292px, calc(100vw - 42px));
+          transform: translateX(-105%);
+          transition: transform 0.22s ease;
+        }
+
+        .layout.menu-open aside {
+          transform: translateX(0);
+        }
+
+        .layout.menu-open .backdrop {
+          display: block;
+          position: fixed;
+          inset: 0;
+          z-index: 110;
+          border: 0;
+          background: rgba(7, 19, 32, 0.45);
+        }
+
+        .menu-btn {
+          display: flex;
+        }
+      }
+
+      @media (max-width: 700px) {
+        header {
+          padding: 0 1rem;
+        }
+
+        .page-kicker {
+          display: none;
+        }
+
+        .user-info div:last-child {
+          display: none;
+        }
+
+        .page-content {
+          padding: 1.1rem;
+        }
       }
     `
   ]
 })
 export class ShellComponent implements OnInit {
   readonly notifications = signal<NotificationView[]>([]);
+  readonly notificationsOpen = signal(false);
+  readonly menuOpen = signal(false);
 
   constructor(readonly auth: AuthService, private readonly api: ApiService) {}
 
@@ -296,14 +505,39 @@ export class ShellComponent implements OnInit {
     this.reloadNotifications();
   }
 
-  reloadNotifications() {
+  userInitial(): string {
+    return this.auth.currentUser()?.fullName?.trim().charAt(0).toUpperCase() || 'U';
+  }
+
+  closeMenu(): void {
+    this.menuOpen.set(false);
+  }
+
+  toggleNotifications(): void {
+    this.notificationsOpen.update((open) => !open);
+    if (!this.notificationsOpen()) {
+      return;
+    }
+    this.reloadNotifications();
+  }
+
+  reloadNotifications(): void {
     this.api.notifications().subscribe({
-      next: (res) => this.notifications.set(res.slice(0, 5)),
+      next: (res) => this.notifications.set(res.slice(0, 6)),
       error: () => this.notifications.set([])
     });
   }
 
-  logout() {
+  markAllRead(): void {
+    const current = this.notifications();
+    this.notifications.set([]);
+    this.notificationsOpen.set(false);
+    current.forEach((item) => {
+      this.api.markNotificationRead(item.id).subscribe({ error: () => undefined });
+    });
+  }
+
+  logout(): void {
     this.auth.logout();
   }
 }

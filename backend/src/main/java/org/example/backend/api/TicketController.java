@@ -2,6 +2,10 @@ package org.example.backend.api;
 
 import jakarta.validation.Valid;
 import org.example.backend.api.dto.AuthDtos;
+import org.example.backend.domain.TicketCategory;
+import org.example.backend.domain.TicketPriority;
+import org.example.backend.domain.TicketStatus;
+import org.example.backend.domain.TicketType;
 import org.example.backend.domain.UserAccount;
 import org.example.backend.service.CurrentUserService;
 import org.example.backend.service.TicketService;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -35,9 +40,19 @@ public class TicketController {
     }
 
     @GetMapping
-    public List<AuthDtos.TicketView> list() {
+    public List<AuthDtos.TicketView> list(@RequestParam(required = false) String q,
+                                          @RequestParam(required = false) TicketStatus status,
+                                          @RequestParam(required = false) TicketPriority priority,
+                                          @RequestParam(required = false) TicketCategory category,
+                                          @RequestParam(required = false) TicketType type,
+                                          @RequestParam(required = false) Long agentId,
+                                          @RequestParam(required = false) Boolean unassigned,
+                                          @RequestParam(required = false) Boolean assignedToMe,
+                                          @RequestParam(required = false) Boolean mine,
+                                          @RequestParam(required = false) Boolean overdue,
+                                          @RequestParam(required = false) Boolean includeArchived) {
         UserAccount currentUser = currentUserService.requireCurrentUser();
-        return ticketService.listTickets(currentUser);
+        return ticketService.listTickets(currentUser, q, status, priority, category, type, agentId, unassigned, assignedToMe, mine, overdue, includeArchived);
     }
 
     @GetMapping("/{id}")
@@ -49,13 +64,21 @@ public class TicketController {
     @PatchMapping("/{id}/assign")
     @PreAuthorize("hasAnyRole('AGENT','SUPERVISEUR','ADMIN')")
     public AuthDtos.TicketView assign(@PathVariable Long id, @Valid @RequestBody AuthDtos.AssignTicketRequest request) {
-        return ticketService.assign(id, request.agentId());
+        UserAccount currentUser = currentUserService.requireCurrentUser();
+        return ticketService.assign(id, request.agentId(), currentUser);
     }
 
     @PatchMapping("/{id}/status")
     public AuthDtos.TicketView changeStatus(@PathVariable Long id, @Valid @RequestBody AuthDtos.TicketStatusRequest request) {
         UserAccount currentUser = currentUserService.requireCurrentUser();
         return ticketService.changeStatus(id, request.status(), currentUser);
+    }
+
+    @PatchMapping("/{id}/priority")
+    @PreAuthorize("hasAnyRole('AGENT','SUPERVISEUR','ADMIN')")
+    public AuthDtos.TicketView changePriority(@PathVariable Long id, @Valid @RequestBody AuthDtos.TicketPriorityRequest request) {
+        UserAccount currentUser = currentUserService.requireCurrentUser();
+        return ticketService.changePriority(id, request.priority(), currentUser);
     }
 
     @PostMapping("/{id}/comments")

@@ -1,9 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
-import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType } from '../../core/models';
+import { ApiService, TicketFilters } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType, UserSummary } from '../../core/models';
 
 @Component({
   selector: 'app-tickets-page',
@@ -13,13 +13,13 @@ import { AuthService } from '../../core/auth.service';
     <section class="tickets-page">
       <div class="page-header">
         <div>
-          <p class="eyebrow">{{ auth.hasAnyRole(['CLIENT']) ? 'Demande client' : 'Support opérationnel' }}</p>
-          <h1>{{ auth.hasAnyRole(['CLIENT']) ? 'Créer et suivre mes tickets' : 'Gestion des tickets' }}</h1>
+          <p class="eyebrow">{{ auth.hasAnyRole(['CLIENT']) ? 'Demande client' : 'Support operationnel' }}</p>
+          <h1>{{ auth.hasAnyRole(['CLIENT']) ? 'Creer et suivre mes tickets' : 'Gestion des tickets' }}</h1>
         </div>
         <p class="subtitle">
           {{ auth.hasAnyRole(['CLIENT'])
-            ? "Décrivez clairement votre besoin : plus le contexte est précis, plus la réponse sera rapide."
-            : "Traitez les priorités, mettez les statuts à jour et gardez l'historique visible." }}
+            ? "Decrivez clairement votre besoin : plus le contexte est precis, plus la reponse sera rapide."
+            : "Filtrez la file, assignez les dossiers et gardez les risques SLA visibles." }}
         </p>
       </div>
 
@@ -30,7 +30,7 @@ import { AuthService } from '../../core/auth.service';
           </span>
           <div>
             <h2>Nouveau ticket</h2>
-            <p>Un titre court, une description utile et la bonne priorité suffisent.</p>
+            <p>Un titre court, une description utile et la bonne priorite suffisent.</p>
           </div>
         </div>
 
@@ -40,8 +40,8 @@ import { AuthService } from '../../core/auth.service';
         </div>
 
         <div class="field">
-          <label for="ticket-description">Description détaillée</label>
-          <textarea id="ticket-description" formControlName="description" rows="5" placeholder="Expliquez le contexte, le moment d'apparition et les tests déjà faits."></textarea>
+          <label for="ticket-description">Description detaillee</label>
+          <textarea id="ticket-description" formControlName="description" rows="5" placeholder="Expliquez le contexte, le moment d'apparition et les tests deja faits."></textarea>
         </div>
 
         <div class="form-grid">
@@ -52,17 +52,22 @@ import { AuthService } from '../../core/auth.service';
             </select>
           </div>
           <div class="field">
-            <label for="ticket-category">Catégorie</label>
+            <label for="ticket-category">Categorie</label>
             <select id="ticket-category" formControlName="category">
               <option *ngFor="let item of categories" [value]="item">{{ categoryLabel(item) }}</option>
             </select>
           </div>
           <div class="field">
-            <label for="ticket-priority">Priorité</label>
+            <label for="ticket-priority">Priorite</label>
             <select id="ticket-priority" formControlName="priority">
               <option *ngFor="let item of priorities" [value]="item">{{ priorityLabel(item) }}</option>
             </select>
           </div>
+        </div>
+
+        <div class="field">
+          <label for="ticket-attachment">Lien de piece jointe</label>
+          <input id="ticket-attachment" formControlName="attachmentUrl" placeholder="https://... (optionnel)" />
         </div>
 
         <div class="form-footer">
@@ -76,6 +81,108 @@ import { AuthService } from '../../core/auth.service';
       <p class="notice" *ngIf="notice()">{{ notice() }}</p>
       <p class="error" *ngIf="error()">{{ error() }}</p>
 
+      <section class="filter-card">
+        <div class="filter-top">
+          <div>
+            <p class="eyebrow">Recherche et filtres</p>
+            <h2>Prioriser la file</h2>
+          </div>
+          <div class="manager-actions" *ngIf="isManager()">
+            <button type="button" class="btn-light" (click)="escalateSla()">Escalader SLA</button>
+            <button type="button" class="btn-light danger" (click)="archiveClosed()">Archiver fermes</button>
+          </div>
+        </div>
+
+        <div class="quick-stats">
+          <button type="button" (click)="resetFilters()">
+            <span>Total</span>
+            <strong>{{ totalTickets() }}</strong>
+          </button>
+          <button type="button" (click)="setStatus('OUVERT')">
+            <span>Ouverts</span>
+            <strong>{{ openCount() }}</strong>
+          </button>
+          <button type="button" (click)="showOverdueOnly()">
+            <span>SLA depasse</span>
+            <strong>{{ overdueCount() }}</strong>
+          </button>
+          <button type="button" (click)="setPriority('CRITIQUE')">
+            <span>Critiques</span>
+            <strong>{{ criticalCount() }}</strong>
+          </button>
+          <button type="button" (click)="showUnassigned()" *ngIf="isStaff()">
+            <span>Non assignes</span>
+            <strong>{{ unassignedCount() }}</strong>
+          </button>
+        </div>
+
+        <div class="filters-grid">
+          <div class="field search-field">
+            <label for="ticket-search">Recherche</label>
+            <input id="ticket-search" [value]="search()" (input)="search.set($any($event.target).value)" (keyup.enter)="load()" placeholder="Titre, description, client, agent..." />
+          </div>
+          <div class="field">
+            <label for="status-filter">Statut</label>
+            <select id="status-filter" [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value)">
+              <option value="ALL">Tous</option>
+              <option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="priority-filter">Priorite</label>
+            <select id="priority-filter" [value]="priorityFilter()" (change)="priorityFilter.set($any($event.target).value)">
+              <option value="ALL">Toutes</option>
+              <option *ngFor="let p of priorities" [value]="p">{{ priorityLabel(p) }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="category-filter">Categorie</label>
+            <select id="category-filter" [value]="categoryFilter()" (change)="categoryFilter.set($any($event.target).value)">
+              <option value="ALL">Toutes</option>
+              <option *ngFor="let c of categories" [value]="c">{{ categoryLabel(c) }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="type-filter">Type</label>
+            <select id="type-filter" [value]="typeFilter()" (change)="typeFilter.set($any($event.target).value)">
+              <option value="ALL">Tous</option>
+              <option *ngFor="let t of types" [value]="t">{{ typeLabel(t) }}</option>
+            </select>
+          </div>
+          <div class="field" *ngIf="isStaff()">
+            <label for="agent-filter">Agent</label>
+            <select id="agent-filter" [value]="agentFilter()" (change)="agentFilter.set($any($event.target).value)">
+              <option value="ALL">Tous</option>
+              <option value="UNASSIGNED">Non assignes</option>
+              <option *ngFor="let agent of agents()" [value]="agent.id">{{ agent.fullName }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-flags">
+          <label *ngIf="isStaff()">
+            <input type="checkbox" [checked]="assignedToMe()" (change)="assignedToMe.set($any($event.target).checked)" />
+            Assignes a moi
+          </label>
+          <label>
+            <input type="checkbox" [checked]="overdueOnly()" (change)="overdueOnly.set($any($event.target).checked)" />
+            SLA depasse
+          </label>
+          <label *ngIf="isStaff()">
+            <input type="checkbox" [checked]="mineOnly()" (change)="mineOnly.set($any($event.target).checked)" />
+            Mes dossiers
+          </label>
+          <label *ngIf="isManager()">
+            <input type="checkbox" [checked]="includeArchived()" (change)="includeArchived.set($any($event.target).checked)" />
+            Inclure archives
+          </label>
+          <div class="filter-actions">
+            <button type="button" class="btn-submit" (click)="load()">Appliquer</button>
+            <button type="button" class="btn-reset" (click)="resetFilters()">Reinitialiser</button>
+          </div>
+        </div>
+      </section>
+
       <div class="tickets-list">
         <div class="list-header">
           <div>
@@ -86,28 +193,39 @@ import { AuthService } from '../../core/auth.service';
         </div>
 
         <div class="empty-state" *ngIf="tickets().length === 0">
-          <strong>Aucun ticket pour le moment.</strong>
-          <p>{{ auth.hasAnyRole(['CLIENT']) ? 'Votre prochain ticket apparaîtra ici après création.' : 'La file support est vide.' }}</p>
+          <strong>Aucun ticket pour ces criteres.</strong>
+          <p>{{ auth.hasAnyRole(['CLIENT']) ? 'Ajustez les filtres ou creez une nouvelle demande.' : 'Aucun dossier ne correspond a cette vue.' }}</p>
         </div>
 
         <article class="ticket-card" *ngFor="let ticket of tickets()">
           <div class="ticket-top">
             <div>
-              <span class="id">#{{ ticket.id }}</span>
+              <div class="badges-line">
+                <span class="id">#{{ ticket.id }}</span>
+                <span class="archive-badge" *ngIf="ticket.archived">Archive</span>
+                <span class="sla-badge" [attr.data-sla]="slaState(ticket)">{{ slaLabel(ticket) }}</span>
+              </div>
               <h3>{{ ticket.title }}</h3>
             </div>
             <span class="status-badge" [attr.data-status]="ticket.status">{{ statusLabel(ticket.status) }}</span>
           </div>
 
           <p class="desc">{{ ticket.description }}</p>
+          <a class="attachment-link" *ngIf="ticket.attachmentUrl" [href]="ticket.attachmentUrl" target="_blank" rel="noreferrer">
+            Ouvrir la piece jointe
+          </a>
 
           <dl class="ticket-meta">
             <div>
-              <dt>Priorité</dt>
+              <dt>Type</dt>
+              <dd>{{ typeLabel(ticket.type) }}</dd>
+            </div>
+            <div>
+              <dt>Priorite</dt>
               <dd class="priority-val" [attr.data-priority]="ticket.priority">{{ priorityLabel(ticket.priority) }}</dd>
             </div>
             <div>
-              <dt>Catégorie</dt>
+              <dt>Categorie</dt>
               <dd>{{ categoryLabel(ticket.category) }}</dd>
             </div>
             <div>
@@ -116,7 +234,7 @@ import { AuthService } from '../../core/auth.service';
             </div>
             <div>
               <dt>Agent</dt>
-              <dd>{{ ticket.agent?.fullName || 'Non assigné' }}</dd>
+              <dd>{{ ticket.agent?.fullName || 'Non assigne' }}</dd>
             </div>
             <div>
               <dt>SLA</dt>
@@ -125,7 +243,7 @@ import { AuthService } from '../../core/auth.service';
           </dl>
 
           <div class="comments" *ngIf="ticket.comments.length">
-            <h4>Échanges</h4>
+            <h4>Echanges</h4>
             <article *ngFor="let comment of ticket.comments">
               <strong>{{ comment.author }}</strong>
               <p>{{ comment.message }}</p>
@@ -138,11 +256,37 @@ import { AuthService } from '../../core/auth.service';
               <button type="submit" [disabled]="!commentDrafts[ticket.id]?.trim()">Commenter</button>
             </form>
 
-            <div class="staff-actions" *ngIf="auth.hasAnyRole(['ADMIN', 'AGENT', 'SUPERVISEUR'])">
-              <select #statusSel aria-label="Changer le statut">
-                <option *ngFor="let s of statuses" [value]="s" [selected]="s === ticket.status">{{ statusLabel(s) }}</option>
-              </select>
-              <button type="button" (click)="changeStatus(ticket.id, statusSel.value)">Mettre à jour</button>
+            <div class="staff-actions" *ngIf="isStaff()">
+              <div class="action-group">
+                <label>Statut</label>
+                <div>
+                  <select #statusSel aria-label="Changer le statut">
+                    <option *ngFor="let s of statuses" [value]="s" [selected]="s === ticket.status">{{ statusLabel(s) }}</option>
+                  </select>
+                  <button type="button" (click)="changeStatus(ticket.id, statusSel.value)">Mettre a jour</button>
+                </div>
+              </div>
+
+              <div class="action-group">
+                <label>Priorite</label>
+                <div>
+                  <select #prioritySel aria-label="Changer la priorite">
+                    <option *ngFor="let p of priorities" [value]="p" [selected]="p === ticket.priority">{{ priorityLabel(p) }}</option>
+                  </select>
+                  <button type="button" (click)="changePriority(ticket.id, prioritySel.value)">Changer</button>
+                </div>
+              </div>
+
+              <div class="action-group">
+                <label>Assignation</label>
+                <div>
+                  <select #agentSel aria-label="Assigner le ticket" [disabled]="agents().length === 0">
+                    <option value="">Choisir agent</option>
+                    <option *ngFor="let agent of agents()" [value]="agent.id" [selected]="ticket.agent?.id === agent.id">{{ agent.fullName }}</option>
+                  </select>
+                  <button type="button" (click)="assign(ticket.id, agentSel.value)" [disabled]="!agentSel.value">Assigner</button>
+                </div>
+              </div>
             </div>
 
             <div class="rating" *ngIf="auth.hasAnyRole(['CLIENT']) && (ticket.status === 'RESOLU' || ticket.status === 'FERME')">
@@ -159,14 +303,15 @@ import { AuthService } from '../../core/auth.service';
   styles: [
     `
       .tickets-page {
-        max-width: 1120px;
+        max-width: 1180px;
         margin: 0 auto;
         display: grid;
         gap: 1.6rem;
       }
 
       .page-header,
-      .list-header {
+      .list-header,
+      .filter-top {
         display: flex;
         justify-content: space-between;
         gap: 1.5rem;
@@ -188,21 +333,23 @@ import { AuthService } from '../../core/auth.service';
       }
 
       .subtitle {
-        max-width: 460px;
+        max-width: 480px;
         color: var(--text-secondary);
         line-height: 1.65;
       }
 
       .new-ticket,
       .ticket-card,
-      .empty-state {
+      .empty-state,
+      .filter-card {
         background: #fff;
         border: 1px solid var(--line);
         border-radius: var(--radius-md);
         box-shadow: var(--shadow-sm);
       }
 
-      .new-ticket {
+      .new-ticket,
+      .filter-card {
         padding: 1.3rem;
         display: grid;
         gap: 1rem;
@@ -227,7 +374,8 @@ import { AuthService } from '../../core/auth.service';
       }
 
       .form-header h2,
-      .list-header h2 {
+      .list-header h2,
+      .filter-top h2 {
         font-size: 1.2rem;
       }
 
@@ -241,9 +389,10 @@ import { AuthService } from '../../core/auth.service';
         gap: 0.45rem;
       }
 
-      .field label {
+      .field label,
+      .action-group label {
         color: var(--text-primary);
-        font-size: 0.88rem;
+        font-size: 0.86rem;
         font-weight: 900;
       }
 
@@ -270,22 +419,33 @@ import { AuthService } from '../../core/auth.service';
         box-shadow: 0 0 0 4px rgba(0, 89, 163, 0.10);
       }
 
-      .form-grid {
+      .form-grid,
+      .filters-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 1rem;
       }
 
-      .form-footer {
+      .search-field {
+        grid-column: span 2;
+      }
+
+      .form-footer,
+      .filter-actions,
+      .manager-actions {
         display: flex;
         justify-content: flex-end;
+        gap: 0.6rem;
+        flex-wrap: wrap;
       }
 
       .btn-submit,
+      .btn-light,
+      .btn-reset,
       .comment-form button,
       .staff-actions button,
-      .rating button {
-        border: 0;
+      .rating button,
+      .quick-stats button {
         border-radius: var(--radius-md);
         font-weight: 900;
         cursor: pointer;
@@ -295,14 +455,31 @@ import { AuthService } from '../../core/auth.service';
         min-height: 42px;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 0.65rem;
+        border: 0;
         background: var(--brand-blue);
         color: #fff;
         padding: 0.75rem 1.05rem;
       }
 
+      .btn-light,
+      .btn-reset {
+        min-height: 40px;
+        border: 1px solid var(--line);
+        background: var(--surface-soft);
+        color: var(--brand-blue);
+        padding: 0.6rem 0.85rem;
+      }
+
+      .btn-light.danger {
+        color: var(--danger);
+        background: var(--danger-soft);
+      }
+
       .btn-submit:disabled,
-      .comment-form button:disabled {
+      .comment-form button:disabled,
+      .staff-actions button:disabled {
         opacity: 0.55;
         cursor: not-allowed;
       }
@@ -324,6 +501,59 @@ import { AuthService } from '../../core/auth.service';
         background: var(--danger-soft);
         color: var(--danger);
         border: 1px solid rgba(194, 65, 61, 0.22);
+      }
+
+      .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+      }
+
+      .quick-stats button {
+        min-height: 76px;
+        border: 1px solid var(--line);
+        background: var(--surface-soft);
+        color: var(--text-primary);
+        text-align: left;
+        padding: 0.8rem;
+      }
+
+      .quick-stats span {
+        display: block;
+        color: var(--text-muted);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .quick-stats strong {
+        display: block;
+        margin-top: 0.2rem;
+        font-family: 'Sora', sans-serif;
+        font-size: 1.35rem;
+      }
+
+      .filter-flags {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .filter-flags label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--text-secondary);
+        font-weight: 800;
+      }
+
+      .filter-flags input {
+        width: auto;
+      }
+
+      .filter-actions {
+        margin-left: auto;
       }
 
       .tickets-list {
@@ -362,15 +592,47 @@ import { AuthService } from '../../core/auth.service';
         align-items: start;
       }
 
-      .id {
+      .badges-line {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.55rem;
+      }
+
+      .id,
+      .archive-badge,
+      .sla-badge {
         display: inline-flex;
-        color: var(--brand-blue);
-        background: var(--brand-blue-soft);
         border-radius: var(--radius-sm);
         padding: 0.22rem 0.5rem;
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         font-weight: 900;
-        margin-bottom: 0.55rem;
+      }
+
+      .id {
+        color: var(--brand-blue);
+        background: var(--brand-blue-soft);
+      }
+
+      .archive-badge {
+        color: var(--text-secondary);
+        background: var(--surface-soft);
+      }
+
+      .sla-badge[data-sla="late"] {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .sla-badge[data-sla="soon"] {
+        background: var(--warning-soft);
+        color: var(--warning);
+      }
+
+      .sla-badge[data-sla="ok"],
+      .sla-badge[data-sla="done"] {
+        background: var(--success-soft);
+        color: var(--success);
       }
 
       .ticket-top h3 {
@@ -418,9 +680,16 @@ import { AuthService } from '../../core/auth.service';
         line-height: 1.58;
       }
 
+      .attachment-link {
+        width: fit-content;
+        color: var(--brand-blue);
+        font-weight: 900;
+        text-decoration: none;
+      }
+
       .ticket-meta {
         display: grid;
-        grid-template-columns: repeat(5, minmax(120px, 1fr));
+        grid-template-columns: repeat(6, minmax(120px, 1fr));
         gap: 0.8rem;
         padding-top: 1rem;
         border-top: 1px solid var(--line);
@@ -489,7 +758,6 @@ import { AuthService } from '../../core/auth.service';
       }
 
       .comment-form,
-      .staff-actions,
       .rating {
         display: flex;
         align-items: center;
@@ -507,13 +775,30 @@ import { AuthService } from '../../core/auth.service';
       .comment-form button,
       .staff-actions button {
         min-height: 40px;
+        border: 0;
         padding: 0.65rem 0.9rem;
         background: var(--brand-blue);
         color: #fff;
       }
 
-      .staff-actions select {
-        max-width: 180px;
+      .staff-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(210px, 1fr));
+        gap: 0.8rem;
+      }
+
+      .action-group {
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      .action-group div {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .action-group select {
+        min-width: 0;
       }
 
       .rating {
@@ -542,16 +827,23 @@ import { AuthService } from '../../core/auth.service';
         color: #fff;
       }
 
-      @media (max-width: 880px) {
+      @media (max-width: 980px) {
         .page-header,
-        .list-header {
+        .list-header,
+        .filter-top {
           display: grid;
           align-items: start;
         }
 
         .form-grid,
-        .ticket-meta {
+        .filters-grid,
+        .ticket-meta,
+        .staff-actions {
           grid-template-columns: 1fr 1fr;
+        }
+
+        .search-field {
+          grid-column: span 2;
         }
       }
 
@@ -561,18 +853,25 @@ import { AuthService } from '../../core/auth.service';
         }
 
         .form-grid,
-        .ticket-meta {
+        .filters-grid,
+        .ticket-meta,
+        .staff-actions {
           grid-template-columns: 1fr;
+        }
+
+        .search-field {
+          grid-column: auto;
         }
 
         .ticket-top,
         .comment-form,
-        .staff-actions {
+        .action-group div {
           display: grid;
         }
 
-        .staff-actions select {
-          max-width: none;
+        .filter-actions {
+          width: 100%;
+          margin-left: 0;
         }
       }
     `
@@ -580,9 +879,27 @@ import { AuthService } from '../../core/auth.service';
 })
 export class TicketsPage implements OnInit {
   readonly tickets = signal<Ticket[]>([]);
+  readonly agents = signal<UserSummary[]>([]);
   readonly saving = signal(false);
   readonly notice = signal('');
   readonly error = signal('');
+
+  readonly search = signal('');
+  readonly statusFilter = signal<TicketStatus | 'ALL'>('ALL');
+  readonly priorityFilter = signal<TicketPriority | 'ALL'>('ALL');
+  readonly categoryFilter = signal<TicketCategory | 'ALL'>('ALL');
+  readonly typeFilter = signal<TicketType | 'ALL'>('ALL');
+  readonly agentFilter = signal<string>('ALL');
+  readonly assignedToMe = signal(false);
+  readonly mineOnly = signal(false);
+  readonly overdueOnly = signal(false);
+  readonly includeArchived = signal(false);
+
+  readonly totalTickets = computed(() => this.tickets().length);
+  readonly openCount = computed(() => this.tickets().filter((ticket) => ticket.status === 'OUVERT').length);
+  readonly overdueCount = computed(() => this.tickets().filter((ticket) => this.isSlaLate(ticket)).length);
+  readonly criticalCount = computed(() => this.tickets().filter((ticket) => ticket.priority === 'CRITIQUE').length);
+  readonly unassignedCount = computed(() => this.tickets().filter((ticket) => !ticket.agent).length);
 
   readonly statuses: TicketStatus[] = ['OUVERT', 'EN_COURS', 'EN_ATTENTE', 'RESOLU', 'FERME'];
   readonly types: TicketType[] = ['INCIDENT', 'DEMANDE'];
@@ -609,13 +926,17 @@ export class TicketsPage implements OnInit {
   }
 
   ngOnInit(): void {
+    if (this.isStaff()) {
+      this.loadSupportUsers();
+    }
     this.load();
   }
 
   load(): void {
-    this.api.tickets().subscribe({
+    this.error.set('');
+    this.api.tickets(this.buildFilters()).subscribe({
       next: (res: Ticket[]) => this.tickets.set(res),
-      error: () => this.error.set("Impossible de charger les tickets.")
+      error: () => this.error.set('Impossible de charger les tickets.')
     });
   }
 
@@ -631,7 +952,7 @@ export class TicketsPage implements OnInit {
     this.api.createTicket(this.form.getRawValue() as any).subscribe({
       next: () => {
         this.saving.set(false);
-        this.notice.set('Ticket envoyé. Il apparaît maintenant dans votre suivi.');
+        this.notice.set('Ticket envoye. Il apparait maintenant dans votre suivi.');
         this.form.reset({
           title: '',
           description: '',
@@ -644,7 +965,7 @@ export class TicketsPage implements OnInit {
       },
       error: () => {
         this.saving.set(false);
-        this.error.set("Le ticket n'a pas pu être envoyé.");
+        this.error.set("Le ticket n'a pas pu etre envoye.");
       }
     });
   }
@@ -652,10 +973,35 @@ export class TicketsPage implements OnInit {
   changeStatus(id: number, value: string): void {
     this.api.changeTicketStatus(id, value as TicketStatus).subscribe({
       next: () => {
-        this.notice.set('Statut mis à jour.');
+        this.notice.set('Statut mis a jour.');
         this.load();
       },
-      error: () => this.error.set("Impossible de mettre le statut à jour.")
+      error: () => this.error.set('Impossible de mettre le statut a jour.')
+    });
+  }
+
+  changePriority(id: number, value: string): void {
+    this.api.changeTicketPriority(id, value as TicketPriority).subscribe({
+      next: () => {
+        this.notice.set('Priorite mise a jour.');
+        this.load();
+      },
+      error: () => this.error.set('Impossible de mettre la priorite a jour.')
+    });
+  }
+
+  assign(id: number, value: string): void {
+    const agentId = Number(value);
+    if (!agentId) {
+      return;
+    }
+
+    this.api.assignTicket(id, agentId).subscribe({
+      next: () => {
+        this.notice.set('Ticket assigne.');
+        this.load();
+      },
+      error: () => this.error.set("Impossible d'assigner ce ticket.")
     });
   }
 
@@ -670,18 +1016,72 @@ export class TicketsPage implements OnInit {
         this.commentDrafts[id] = '';
         this.load();
       },
-      error: () => this.error.set("Le commentaire n'a pas pu être ajouté.")
+      error: () => this.error.set("Le commentaire n'a pas pu etre ajoute.")
     });
   }
 
   rate(id: number, score: number): void {
     this.api.rateTicket(id, score).subscribe({
       next: () => {
-        this.notice.set('Merci, votre note est enregistrée.');
+        this.notice.set('Merci, votre note est enregistree.');
         this.load();
       },
-      error: () => this.error.set("La note n'a pas pu être enregistrée.")
+      error: () => this.error.set("La note n'a pas pu etre enregistree.")
     });
+  }
+
+  archiveClosed(): void {
+    this.api.archiveClosedTickets().subscribe({
+      next: (count) => {
+        this.notice.set(`${count} ticket${count > 1 ? 's' : ''} ferme${count > 1 ? 's' : ''} archive${count > 1 ? 's' : ''}.`);
+        this.load();
+      },
+      error: () => this.error.set("Impossible d'archiver les tickets fermes.")
+    });
+  }
+
+  escalateSla(): void {
+    this.api.escalateSla().subscribe({
+      next: (count) => {
+        this.notice.set(`${count} ticket${count > 1 ? 's' : ''} en retard traite${count > 1 ? 's' : ''}.`);
+        this.load();
+      },
+      error: () => this.error.set("Impossible d'escalader les tickets en retard.")
+    });
+  }
+
+  resetFilters(): void {
+    this.search.set('');
+    this.statusFilter.set('ALL');
+    this.priorityFilter.set('ALL');
+    this.categoryFilter.set('ALL');
+    this.typeFilter.set('ALL');
+    this.agentFilter.set('ALL');
+    this.assignedToMe.set(false);
+    this.mineOnly.set(false);
+    this.overdueOnly.set(false);
+    this.includeArchived.set(false);
+    this.load();
+  }
+
+  setStatus(status: TicketStatus): void {
+    this.statusFilter.set(status);
+    this.load();
+  }
+
+  setPriority(priority: TicketPriority): void {
+    this.priorityFilter.set(priority);
+    this.load();
+  }
+
+  showOverdueOnly(): void {
+    this.overdueOnly.set(true);
+    this.load();
+  }
+
+  showUnassigned(): void {
+    this.agentFilter.set('UNASSIGNED');
+    this.load();
   }
 
   statusLabel(status: TicketStatus): string {
@@ -689,8 +1089,8 @@ export class TicketsPage implements OnInit {
       OUVERT: 'Ouvert',
       EN_COURS: 'En cours',
       EN_ATTENTE: 'En attente',
-      RESOLU: 'Résolu',
-      FERME: 'Fermé'
+      RESOLU: 'Resolu',
+      FERME: 'Ferme'
     };
     return labels[status];
   }
@@ -699,7 +1099,7 @@ export class TicketsPage implements OnInit {
     const labels: Record<TicketPriority, string> = {
       FAIBLE: 'Faible',
       MOYENNE: 'Moyenne',
-      ELEVEE: 'Élevée',
+      ELEVEE: 'Elevee',
       CRITIQUE: 'Critique'
     };
     return labels[priority];
@@ -707,10 +1107,10 @@ export class TicketsPage implements OnInit {
 
   categoryLabel(category: TicketCategory): string {
     const labels: Record<TicketCategory, string> = {
-      MATERIEL: 'Matériel',
+      MATERIEL: 'Materiel',
       LOGICIEL: 'Logiciel',
-      RESEAU: 'Réseau',
-      ACCES: 'Accès',
+      RESEAU: 'Reseau',
+      ACCES: 'Acces',
       AUTRE: 'Autre'
     };
     return labels[category];
@@ -718,5 +1118,88 @@ export class TicketsPage implements OnInit {
 
   typeLabel(type: TicketType): string {
     return type === 'INCIDENT' ? 'Incident' : 'Demande';
+  }
+
+  slaState(ticket: Ticket): 'late' | 'soon' | 'ok' | 'done' {
+    if (ticket.status === 'RESOLU' || ticket.status === 'FERME') {
+      return 'done';
+    }
+    const remainingMs = new Date(ticket.slaDeadline).getTime() - Date.now();
+    if (remainingMs < 0) {
+      return 'late';
+    }
+    return remainingMs <= 4 * 60 * 60 * 1000 ? 'soon' : 'ok';
+  }
+
+  slaLabel(ticket: Ticket): string {
+    const state = this.slaState(ticket);
+    if (state === 'late') {
+      return 'SLA depasse';
+    }
+    if (state === 'soon') {
+      return 'SLA proche';
+    }
+    if (state === 'done') {
+      return 'SLA cloture';
+    }
+    return 'SLA actif';
+  }
+
+  isStaff(): boolean {
+    return this.auth.hasAnyRole(['ADMIN', 'AGENT', 'SUPERVISEUR']);
+  }
+
+  isManager(): boolean {
+    return this.auth.hasAnyRole(['ADMIN', 'SUPERVISEUR']);
+  }
+
+  private buildFilters(): TicketFilters {
+    const filters: TicketFilters = {};
+    const q = this.search().trim();
+    if (q) {
+      filters.q = q;
+    }
+    if (this.statusFilter() !== 'ALL') {
+      filters.status = this.statusFilter() as TicketStatus;
+    }
+    if (this.priorityFilter() !== 'ALL') {
+      filters.priority = this.priorityFilter() as TicketPriority;
+    }
+    if (this.categoryFilter() !== 'ALL') {
+      filters.category = this.categoryFilter() as TicketCategory;
+    }
+    if (this.typeFilter() !== 'ALL') {
+      filters.type = this.typeFilter() as TicketType;
+    }
+    if (this.agentFilter() !== 'ALL' && this.agentFilter() !== 'UNASSIGNED') {
+      filters.agentId = Number(this.agentFilter());
+    }
+    if (this.agentFilter() === 'UNASSIGNED') {
+      filters.unassigned = true;
+    }
+    if (this.assignedToMe()) {
+      filters.assignedToMe = true;
+    }
+    if (this.mineOnly()) {
+      filters.mine = true;
+    }
+    if (this.overdueOnly()) {
+      filters.overdue = true;
+    }
+    if (this.includeArchived()) {
+      filters.includeArchived = true;
+    }
+    return filters;
+  }
+
+  private loadSupportUsers(): void {
+    this.api.supportUsers().subscribe({
+      next: (res) => this.agents.set(res),
+      error: () => this.agents.set([])
+    });
+  }
+
+  private isSlaLate(ticket: Ticket): boolean {
+    return this.slaState(ticket) === 'late';
   }
 }

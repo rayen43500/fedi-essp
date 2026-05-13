@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -72,14 +73,52 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public List<AuthDtos.UserSummary> users() {
-        return userRepository.findAll().stream().map(this::toUserSummary).toList();
+        return userRepository.findAll().stream()
+                .sorted(Comparator.comparing(UserAccount::getFullName, String.CASE_INSENSITIVE_ORDER))
+                .map(this::toUserSummary)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuthDtos.UserSummary> supportUsers() {
+        return userRepository.findAll().stream()
+                .filter(UserAccount::isActive)
+                .filter(this::hasSupportRole)
+                .sorted(Comparator.comparing(UserAccount::getFullName, String.CASE_INSENSITIVE_ORDER))
+                .map(this::toUserSummary)
+                .toList();
     }
 
     @Transactional
     public AuthDtos.UserSummary toggleUser(Long id, boolean active) {
         UserAccount user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+        if (!active && user.getRoles().contains(Role.ADMIN) && countActiveAdmins() <= 1) {
+            throw new IllegalArgumentException("Impossible de desactiver le dernier administrateur actif");
+        }
         user.setActive(active);
+        return toUserSummary(userRepository.save(user));
+    }
+
+    @Transactional
+    public AuthDtos.UserSummary updateRoles(Long id, Set<Role> roles, UserAccount actor) {
+        if (roles == null || roles.isEmpty()) {
+            throw new IllegalArgumentException("Un utilisateur doit garder au moins un role");
+        }
+
+        UserAccount user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+
+        boolean removesAdmin = user.getRoles().contains(Role.ADMIN) && !roles.contains(Role.ADMIN);
+        if (removesAdmin && countActiveAdmins() <= 1) {
+            throw new IllegalArgumentException("Impossible de retirer le dernier administrateur actif");
+        }
+
+        if (actor.getId().equals(user.getId()) && !roles.contains(Role.ADMIN)) {
+            throw new IllegalArgumentException("Vous ne pouvez pas retirer votre propre role administrateur");
+        }
+
+        user.setRoles(Set.copyOf(roles));
         return toUserSummary(userRepository.save(user));
     }
 
@@ -89,7 +128,20 @@ public class AuthService {
     }
 
     private AuthDtos.UserSummary toUserSummary(UserAccount user) {
-        return new AuthDtos.UserSummary(user.getId(), user.getFullName(), user.getEmail(), user.getRoles(), user.isActive());
+        return new AuthDtos.UserSummary(user.getId(), user.getFullName(), user.getEmail(), user.getRoles(), user.isActive(), user.getCreatedAt());
+    }
+
+    private boolean hasSupportRole(UserAccount user) {
+        return user.getRoles().contains(Role.AGENT)
+                || user.getRoles().contains(Role.SUPERVISEUR)
+                || user.getRoles().contains(Role.ADMIN);
+    }
+
+    private long countActiveAdmins() {
+        return userRepository.findAll().stream()
+                .filter(UserAccount::isActive)
+                .filter(user -> user.getRoles().contains(Role.ADMIN))
+                .count();
     }
 
     private String resolveClientIp(HttpServletRequest request) {

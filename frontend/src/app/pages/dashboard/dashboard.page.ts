@@ -1,8 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../core/api.service';
-import { DashboardStats } from '../../core/models';
+import { DashboardStats, Ticket } from '../../core/models';
 import { AuthService } from '../../core/auth.service';
 
 @Component({
@@ -65,6 +65,36 @@ import { AuthService } from '../../core/auth.service';
         </article>
 
         <article class="stat-card">
+          <span class="stat-icon danger">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+          </span>
+          <div>
+            <span>SLA depasse</span>
+            <strong>{{ s.overdueTickets }}</strong>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <span class="stat-icon danger">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h5"/></svg>
+          </span>
+          <div>
+            <span>Critiques</span>
+            <strong>{{ s.criticalTickets }}</strong>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <span class="stat-icon neutral">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+          </span>
+          <div>
+            <span>Non assignes</span>
+            <strong>{{ s.unassignedTickets }}</strong>
+          </div>
+        </article>
+
+        <article class="stat-card">
           <span class="stat-icon green">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
           </span>
@@ -91,9 +121,30 @@ import { AuthService } from '../../core/auth.service';
           <strong>{{ s.averageResolutionHours | number:'1.0-1' }} h</strong>
         </div>
         <p>
-          Les tickets ouverts et en attente doivent rester visibles : ce sont eux qui portent le plus de risque SLA.
+          {{ s.overdueTickets }} ticket{{ s.overdueTickets > 1 ? 's' : '' }} en retard,
+          {{ s.unassignedTickets }} non assigne{{ s.unassignedTickets > 1 ? 's' : '' }} et
+          {{ s.archivedTickets }} archive{{ s.archivedTickets > 1 ? 's' : '' }}.
         </p>
         <a routerLink="/app/tickets">Voir les tickets</a>
+      </div>
+
+      <div class="client-summary" *ngIf="auth.hasAnyRole(['CLIENT'])">
+        <article>
+          <span>Mes tickets</span>
+          <strong>{{ clientTickets().length }}</strong>
+        </article>
+        <article>
+          <span>En cours</span>
+          <strong>{{ clientActiveTickets() }}</strong>
+        </article>
+        <article>
+          <span>SLA a surveiller</span>
+          <strong>{{ clientLateTickets() }}</strong>
+        </article>
+        <article>
+          <span>Notes envoyees</span>
+          <strong>{{ clientRatedTickets() }}</strong>
+        </article>
       </div>
 
       <div class="client-actions" *ngIf="auth.hasAnyRole(['CLIENT'])">
@@ -171,6 +222,7 @@ import { AuthService } from '../../core/auth.service';
       }
 
       .stat-card,
+      .client-summary article,
       .client-actions article,
       .insight-panel {
         background: #fff;
@@ -217,6 +269,11 @@ import { AuthService } from '../../core/auth.service';
       .green {
         background: var(--success-soft);
         color: var(--success);
+      }
+
+      .danger {
+        background: var(--danger-soft);
+        color: var(--danger);
       }
 
       .neutral {
@@ -289,6 +346,32 @@ import { AuthService } from '../../core/auth.service';
         gap: 1rem;
       }
 
+      .client-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(130px, 1fr));
+        gap: 1rem;
+      }
+
+      .client-summary article {
+        padding: 1rem;
+      }
+
+      .client-summary span {
+        display: block;
+        color: var(--text-muted);
+        font-size: 0.74rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .client-summary strong {
+        display: block;
+        margin-top: 0.25rem;
+        font-family: 'Sora', sans-serif;
+        font-size: 1.45rem;
+      }
+
       .client-actions article {
         padding: 1.25rem;
         display: grid;
@@ -337,6 +420,10 @@ import { AuthService } from '../../core/auth.service';
           align-items: start;
         }
 
+        .client-summary {
+          grid-template-columns: 1fr 1fr;
+        }
+
         h1 {
           font-size: 1.9rem;
         }
@@ -346,7 +433,18 @@ import { AuthService } from '../../core/auth.service';
 })
 export class DashboardPage implements OnInit {
   readonly stats = signal<DashboardStats | null>(null);
+  readonly clientTickets = signal<Ticket[]>([]);
   readonly error = signal('');
+  readonly clientActiveTickets = computed(() =>
+    this.clientTickets().filter((ticket) => ticket.status === 'OUVERT' || ticket.status === 'EN_COURS' || ticket.status === 'EN_ATTENTE').length
+  );
+  readonly clientLateTickets = computed(() =>
+    this.clientTickets().filter((ticket) =>
+      (ticket.status === 'OUVERT' || ticket.status === 'EN_COURS' || ticket.status === 'EN_ATTENTE')
+      && new Date(ticket.slaDeadline).getTime() < Date.now()
+    ).length
+  );
+  readonly clientRatedTickets = computed(() => this.clientTickets().filter((ticket) => ticket.satisfactionScore).length);
 
   constructor(
     private readonly api: ApiService,
@@ -358,6 +456,12 @@ export class DashboardPage implements OnInit {
       this.api.dashboardStats().subscribe({
         next: (res: DashboardStats) => this.stats.set(res),
         error: () => this.error.set("Impossible de charger les indicateurs pour le moment.")
+      });
+    }
+    if (this.auth.hasAnyRole(['CLIENT'])) {
+      this.api.tickets().subscribe({
+        next: (res: Ticket[]) => this.clientTickets.set(res),
+        error: () => this.error.set("Impossible de charger vos tickets pour le moment.")
       });
     }
   }

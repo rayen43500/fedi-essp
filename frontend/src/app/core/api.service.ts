@@ -1,6 +1,32 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { ChatbotReply, DashboardStats, KnowledgeArticle, NotificationView, Ticket, TicketStatus, UserSummary } from './models';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import {
+  ChatbotReply,
+  DashboardStats,
+  KnowledgeArticle,
+  NotificationView,
+  Role,
+  Ticket,
+  TicketCategory,
+  TicketPriority,
+  TicketStatus,
+  TicketType,
+  UserSummary
+} from './models';
+
+export interface TicketFilters {
+  q?: string;
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  category?: TicketCategory;
+  type?: TicketType;
+  agentId?: number;
+  unassigned?: boolean;
+  assignedToMe?: boolean;
+  mine?: boolean;
+  overdue?: boolean;
+  includeArchived?: boolean;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -8,8 +34,14 @@ export class ApiService {
 
   constructor(private readonly http: HttpClient) {}
 
-  tickets() {
-    return this.http.get<Ticket[]>(`${this.api}/tickets`);
+  tickets(filters: TicketFilters = {}) {
+    let params = new HttpParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params = params.set(key, String(value));
+      }
+    });
+    return this.http.get<Ticket[]>(`${this.api}/tickets`, { params });
   }
 
   createTicket(payload: {
@@ -27,12 +59,28 @@ export class ApiService {
     return this.http.patch<Ticket>(`${this.api}/tickets/${id}/status`, { status });
   }
 
+  changeTicketPriority(id: number, priority: TicketPriority) {
+    return this.http.patch<Ticket>(`${this.api}/tickets/${id}/priority`, { priority });
+  }
+
+  assignTicket(id: number, agentId: number) {
+    return this.http.patch<Ticket>(`${this.api}/tickets/${id}/assign`, { agentId });
+  }
+
   addComment(id: number, message: string) {
     return this.http.post(`${this.api}/tickets/${id}/comments`, { message });
   }
 
   rateTicket(id: number, score: number) {
     return this.http.post<Ticket>(`${this.api}/tickets/${id}/satisfaction`, { score });
+  }
+
+  archiveClosedTickets() {
+    return this.http.patch<number>(`${this.api}/tickets/archive`, {});
+  }
+
+  escalateSla() {
+    return this.http.patch<number>(`${this.api}/tickets/sla/escalate`, {});
   }
 
   dashboardStats() {
@@ -43,8 +91,16 @@ export class ApiService {
     return this.http.get<UserSummary[]>(`${this.api}/auth/users`);
   }
 
+  supportUsers() {
+    return this.http.get<UserSummary[]>(`${this.api}/auth/users/support`);
+  }
+
   setUserActive(id: number, active: boolean) {
     return this.http.patch<UserSummary>(`${this.api}/auth/users/${id}/active?active=${active}`, {});
+  }
+
+  updateUserRoles(id: number, roles: Role[]) {
+    return this.http.patch<UserSummary>(`${this.api}/auth/users/${id}/roles`, { roles });
   }
 
   knowledge(q?: string) {

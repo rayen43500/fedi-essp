@@ -43,7 +43,13 @@ public final class AuthDtos {
             String fullName,
             String email,
             Set<Role> roles,
-            boolean active
+            boolean active,
+            Instant createdAt
+    ) {
+    }
+
+    public record UserRolesRequest(
+            @NotNull Set<Role> roles
     ) {
     }
 
@@ -59,6 +65,11 @@ public final class AuthDtos {
 
     public record TicketStatusRequest(
             @NotNull TicketStatus status
+    ) {
+    }
+
+    public record TicketPriorityRequest(
+            @NotNull TicketPriority priority
     ) {
     }
 
@@ -112,6 +123,10 @@ public final class AuthDtos {
             long waitingTickets,
             long resolvedTickets,
             long closedTickets,
+            long criticalTickets,
+            long overdueTickets,
+            long unassignedTickets,
+            long archivedTickets,
             double averageResolutionHours,
             double customerSatisfactionRate
     ) {

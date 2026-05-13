@@ -6,6 +6,7 @@ export interface UserSummary {
   email: string;
   roles: Role[];
   active: boolean;
+  createdAt: string;
 }
 
 export interface AuthResponse {
@@ -51,6 +52,10 @@ export interface DashboardStats {
   waitingTickets: number;
   resolvedTickets: number;
   closedTickets: number;
+  criticalTickets: number;
+  overdueTickets: number;
+  unassignedTickets: number;
+  archivedTickets: number;
   averageResolutionHours: number;
   customerSatisfactionRate: number;
 }

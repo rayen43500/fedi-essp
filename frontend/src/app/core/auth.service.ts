@@ -66,6 +66,6 @@ export class AuthService {
 
   private resolveApiBase(): string {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    return isLocal ? 'http://localhost:8080/api' : '/api';
+    return isLocal ? 'http://localhost:8086/api' : '/api';
   }
 }

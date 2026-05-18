@@ -16,8 +16,9 @@ Chart.register(...registerables);
     <section class="dashboard">
       <div class="welcome-header">
         <div>
-          <p class="eyebrow">Bonjour {{ firstName() }}</p>
-          <h1>{{ auth.hasAnyRole(['CLIENT']) ? 'Votre support en un seul endroit' : 'Vue opérationnelle du support' }}</h1>
+          <p class="eyebrow">{{ spaceLabel() }}</p>
+          <h1>{{ auth.hasAnyRole(['CLIENT']) ? 'Mon espace support personnel' : 'Vue opérationnelle du support' }}</h1>
+          <p class="user-email" *ngIf="auth.currentUser() as u">{{ u.fullName }} · {{ u.email }}</p>
         </div>
         <p class="subtitle">
           {{ auth.hasAnyRole(['CLIENT'])
@@ -118,14 +119,37 @@ Chart.register(...registerables);
         </article>
       </div>
 
-      <div class="charts-panel" *ngIf="auth.hasAnyRole(['ADMIN', 'AGENT', 'SUPERVISEUR']) && charts()">
+      <div class="charts-panel" *ngIf="auth.hasAnyRole(['ADMIN', 'AGENT', 'SUPERVISEUR'])">
         <article class="chart-card">
           <h2>Répartition par statut</h2>
-          <canvas #statusChart></canvas>
+          <div class="chart-host">
+            <canvas #statusChart></canvas>
+            <p class="chart-empty" *ngIf="chartsEmpty()">Aucun ticket pour afficher le graphique.</p>
+          </div>
         </article>
         <article class="chart-card">
           <h2>Répartition par priorité</h2>
-          <canvas #priorityChart></canvas>
+          <div class="chart-host">
+            <canvas #priorityChart></canvas>
+            <p class="chart-empty" *ngIf="chartsEmpty()">Aucun ticket pour afficher le graphique.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="charts-panel client-charts" *ngIf="auth.hasAnyRole(['CLIENT'])">
+        <article class="chart-card">
+          <h2>Mes tickets par statut</h2>
+          <div class="chart-host">
+            <canvas #clientStatusChart></canvas>
+            <p class="chart-empty" *ngIf="chartsEmpty()">Créez un ticket pour voir vos statistiques.</p>
+          </div>
+        </article>
+        <article class="chart-card">
+          <h2>Mes tickets par priorité</h2>
+          <div class="chart-host">
+            <canvas #clientPriorityChart></canvas>
+            <p class="chart-empty" *ngIf="chartsEmpty()">Créez un ticket pour voir vos statistiques.</p>
+          </div>
         </article>
       </div>
 
@@ -184,9 +208,9 @@ Chart.register(...registerables);
           <span class="action-icon green">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/></svg>
           </span>
-          <h2>Demander de l’aide</h2>
-          <p>L’assistant support propose une première réponse et des articles pertinents.</p>
-          <a routerLink="/app/chatbot" class="btn secondary">Lancer le chat</a>
+          <h2>Assistant IA</h2>
+          <p>Décrivez votre problème : l’IA peut répondre et créer un ticket à votre place.</p>
+          <a routerLink="/app/chatbot" class="btn secondary">Parler à l’assistant</a>
         </article>
       </div>
 
@@ -227,6 +251,13 @@ Chart.register(...registerables);
         color: var(--text-secondary);
         font-size: 1rem;
         line-height: 1.65;
+      }
+
+      .user-email {
+        margin-top: 0.45rem;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        font-weight: 700;
       }
 
       .stats-grid {
@@ -331,9 +362,28 @@ Chart.register(...registerables);
         font-size: 1rem;
       }
 
-      .chart-card canvas {
+      .chart-host {
+        position: relative;
+        min-height: 260px;
+        width: 100%;
+      }
+
+      .chart-host canvas {
         width: 100% !important;
-        height: 240px !important;
+        height: 260px !important;
+        display: block;
+      }
+
+      .chart-empty {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 1rem;
+        color: var(--text-muted);
+        font-weight: 700;
+        font-size: 0.9rem;
       }
 
       .insight-panel {
@@ -473,6 +523,8 @@ Chart.register(...registerables);
 export class DashboardPage implements OnInit, AfterViewInit {
   @ViewChild('statusChart') statusChartRef?: ElementRef<HTMLCanvasElement>;
   @ViewChild('priorityChart') priorityChartRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('clientStatusChart') clientStatusChartRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('clientPriorityChart') clientPriorityChartRef?: ElementRef<HTMLCanvasElement>;
 
   readonly stats = signal<DashboardStats | null>(null);
   readonly charts = signal<DashboardCharts | null>(null);
@@ -481,6 +533,8 @@ export class DashboardPage implements OnInit, AfterViewInit {
 
   private statusChart?: Chart;
   private priorityChart?: Chart;
+  private clientStatusChart?: Chart;
+  private clientPriorityChart?: Chart;
   readonly clientActiveTickets = computed(() =>
     this.clientTickets().filter((ticket) => ticket.status === 'OUVERT' || ticket.status === 'EN_COURS' || ticket.status === 'EN_ATTENTE').length
   );
@@ -506,7 +560,7 @@ export class DashboardPage implements OnInit, AfterViewInit {
       this.api.dashboardCharts().subscribe({
         next: (res: DashboardCharts) => {
           this.charts.set(res);
-          setTimeout(() => this.renderCharts(res), 0);
+          this.scheduleStaffCharts();
         }
       });
     }
@@ -515,31 +569,88 @@ export class DashboardPage implements OnInit, AfterViewInit {
         next: (res: Ticket[]) => this.clientTickets.set(res),
         error: () => this.error.set("Impossible de charger vos tickets pour le moment.")
       });
+      this.api.myDashboardCharts().subscribe({
+        next: (res: DashboardCharts) => {
+          this.charts.set(res);
+          this.scheduleClientCharts();
+        }
+      });
     }
   }
 
   ngAfterViewInit(): void {
-    const data = this.charts();
-    if (data) {
-      this.renderCharts(data);
+    if (this.auth.hasAnyRole(['ADMIN', 'AGENT', 'SUPERVISEUR'])) {
+      this.scheduleStaffCharts();
     }
+    if (this.auth.hasAnyRole(['CLIENT'])) {
+      this.scheduleClientCharts();
+    }
+  }
+
+  spaceLabel(): string {
+    if (this.auth.hasAnyRole(['CLIENT'])) {
+      return 'Mon espace client';
+    }
+    if (this.auth.hasAnyRole(['AGENT'])) {
+      return 'Espace agent';
+    }
+    if (this.auth.hasAnyRole(['SUPERVISEUR'])) {
+      return 'Espace superviseur';
+    }
+    return 'Espace administrateur';
+  }
+
+  chartsEmpty(): boolean {
+    const data = this.charts();
+    if (!data) {
+      return true;
+    }
+    const total = data.ticketsByStatus.reduce((sum, s) => sum + s.value, 0);
+    return total === 0;
   }
 
   firstName(): string {
     return this.auth.currentUser()?.fullName?.split(' ')[0] || '';
   }
 
-  private renderCharts(data: DashboardCharts): void {
-    const statusCanvas = this.statusChartRef?.nativeElement;
-    const priorityCanvas = this.priorityChartRef?.nativeElement;
+  private scheduleStaffCharts(): void {
+    setTimeout(() => {
+      const data = this.charts();
+      if (data) {
+        this.renderCharts(data, 'staff');
+      }
+    }, 80);
+  }
+
+  private scheduleClientCharts(): void {
+    setTimeout(() => {
+      const data = this.charts();
+      if (data) {
+        this.renderCharts(data, 'client');
+      }
+    }, 80);
+  }
+
+  private renderCharts(data: DashboardCharts, target: 'staff' | 'client'): void {
+    const statusCanvas = target === 'staff'
+      ? this.statusChartRef?.nativeElement
+      : this.clientStatusChartRef?.nativeElement;
+    const priorityCanvas = target === 'staff'
+      ? this.priorityChartRef?.nativeElement
+      : this.clientPriorityChartRef?.nativeElement;
     if (!statusCanvas || !priorityCanvas) {
       return;
     }
 
-    this.statusChart?.destroy();
-    this.priorityChart?.destroy();
+    if (target === 'staff') {
+      this.statusChart?.destroy();
+      this.priorityChart?.destroy();
+    } else {
+      this.clientStatusChart?.destroy();
+      this.clientPriorityChart?.destroy();
+    }
 
-    this.statusChart = new Chart(statusCanvas, {
+    const statusChart = new Chart(statusCanvas, {
       type: 'doughnut',
       data: {
         labels: data.ticketsByStatus.map((s) => s.label),
@@ -551,7 +662,7 @@ export class DashboardPage implements OnInit, AfterViewInit {
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
     });
 
-    this.priorityChart = new Chart(priorityCanvas, {
+    const priorityChart = new Chart(priorityCanvas, {
       type: 'bar',
       data: {
         labels: data.ticketsByPriority.map((s) => s.label),
@@ -568,5 +679,13 @@ export class DashboardPage implements OnInit, AfterViewInit {
         scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
       }
     });
+
+    if (target === 'staff') {
+      this.statusChart = statusChart;
+      this.priorityChart = priorityChart;
+    } else {
+      this.clientStatusChart = statusChart;
+      this.clientPriorityChart = priorityChart;
+    }
   }
 }

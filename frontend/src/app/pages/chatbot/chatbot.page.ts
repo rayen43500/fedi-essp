@@ -59,17 +59,17 @@ interface UiMessage {
               <strong>{{ s.title }}</strong>
               <div
                 class="content-wrap"
-                [class.is-clamped]="needsExpand(s.content) && expandedSuggestionId() !== s.id"
+                [class.is-clamped]="expandedSuggestionId() !== s.id && isSuggestionLong(s.content)"
               >
                 <p class="suggestion-content">{{ s.content }}</p>
                 <div
                   class="fade-overlay"
-                  *ngIf="needsExpand(s.content) && expandedSuggestionId() !== s.id"
+                  *ngIf="isSuggestionLong(s.content) && expandedSuggestionId() !== s.id"
                   aria-hidden="true"
                 ></div>
               </div>
               <button
-                *ngIf="needsExpand(s.content)"
+                *ngIf="isSuggestionLong(s.content)"
                 type="button"
                 class="read-more"
                 (click)="toggleSuggestion(s.id)"
@@ -93,9 +93,16 @@ interface UiMessage {
           </div>
         </div>
 
+        <div class="client-actions" *ngIf="auth.hasAnyRole(['CLIENT']) && !messages().length">
+          <button type="button" class="quick-btn" (click)="promptTicketCreation()">
+            Créer un ticket avec l'IA
+          </button>
+          <p>Décrivez votre problème dans le champ ci-dessous, ou utilisez ce raccourci.</p>
+        </div>
+
         <div class="empty-chat" *ngIf="!messages().length && !loading()">
           <strong>Commencez la conversation</strong>
-          <p>Décrivez votre problème. L'assistant peut répondre ou ouvrir un ticket pour vous.</p>
+          <p>L'assistant répond, propose des guides et peut ouvrir un ticket à votre place.</p>
         </div>
 
         <form class="chat-input-area" (ngSubmit)="send()">
@@ -324,6 +331,9 @@ interface UiMessage {
         color: var(--text-secondary);
         line-height: 1.55;
         white-space: pre-line;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
         margin: 0;
       }
 
@@ -332,7 +342,11 @@ interface UiMessage {
         -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        max-height: 6.6em;
+      }
+
+      .content-wrap:not(.is-clamped) .suggestion-content {
+        display: block;
+        overflow: visible;
       }
 
       .fade-overlay {
@@ -364,6 +378,32 @@ interface UiMessage {
 
       .read-more svg.rotated {
         transform: rotate(180deg);
+      }
+
+      .client-actions {
+        display: grid;
+        gap: 0.5rem;
+        padding: 0.2rem 0;
+      }
+
+      .client-actions p {
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+      }
+
+      .quick-btn {
+        width: fit-content;
+        border: 0;
+        border-radius: var(--radius-md);
+        background: var(--brand-orange);
+        color: #fff;
+        font-weight: 900;
+        padding: 0.6rem 0.95rem;
+        cursor: pointer;
+      }
+
+      .quick-btn:hover {
+        filter: brightness(1.05);
       }
 
       .empty-chat {
@@ -408,6 +448,10 @@ export class ChatbotPage implements OnInit {
     });
   }
 
+  promptTicketCreation(): void {
+    this.question = 'Je souhaite créer un ticket. Mon problème : ';
+  }
+
   send(): void {
     const value = this.question.trim();
     if (!value || this.loading()) {
@@ -424,7 +468,12 @@ export class ChatbotPage implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    this.api.chatbotChat(value, history).subscribe({
+    const wantsTicket = this.auth.hasAnyRole(['CLIENT']) && this.isTicketIntent(value);
+    const request$ = wantsTicket
+      ? this.api.chatbotCreateTicket(value)
+      : this.api.chatbotChat(value, history);
+
+    request$.subscribe({
       next: (res) => {
         this.messages.update((list) => [...list, { role: 'assistant', content: res.answer }]);
         this.suggestions.set(res.suggestions ?? []);
@@ -441,14 +490,25 @@ export class ChatbotPage implements OnInit {
     });
   }
 
-  needsExpand(content: string): boolean {
+  isSuggestionLong(content: string): boolean {
     if (!content) {
       return false;
     }
-    return content.length > 220 || content.split('\n').length > 4;
+    return content.length > 280 || content.split('\n').length > 4;
   }
 
   toggleSuggestion(id: number): void {
     this.expandedSuggestionId.update((current) => (current === id ? null : id));
+  }
+
+  private isTicketIntent(message: string): boolean {
+    const lower = message.toLowerCase();
+    return lower.includes('creer un ticket')
+      || lower.includes('créer un ticket')
+      || lower.includes('ouvrir un ticket')
+      || lower.includes('passer un ticket')
+      || lower.includes('generer un ticket')
+      || lower.includes('générer un ticket')
+      || lower.includes('nouveau ticket');
   }
 }

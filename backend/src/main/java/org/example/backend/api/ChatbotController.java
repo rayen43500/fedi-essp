@@ -34,4 +34,9 @@ public class ChatbotController {
     public AuthDtos.ChatbotReply chat(@Valid @RequestBody AuthDtos.ChatRequest request) {
         return chatbotService.chat(request);
     }
+
+    @PostMapping("/create-ticket")
+    public AuthDtos.ChatbotReply createTicket(@Valid @RequestBody AuthDtos.ChatRequest request) {
+        return chatbotService.createTicketForClient(request);
+    }
 }

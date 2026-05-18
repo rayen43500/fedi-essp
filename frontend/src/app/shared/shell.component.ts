@@ -77,8 +77,9 @@ import { NotificationView } from '../core/models';
             <div class="user-info">
               <div class="avatar">{{ userInitial() }}</div>
               <div>
+                <span class="space-tag">{{ spaceLabel() }}</span>
                 <strong>{{ auth.currentUser()?.fullName }}</strong>
-                <span>{{ auth.currentUser()?.roles?.join(', ') }}</span>
+                <span>{{ auth.currentUser()?.email }}</span>
               </div>
             </div>
           </div>
@@ -313,12 +314,20 @@ import { NotificationView } from '../core/models';
       }
 
       .page-kicker span,
-      .user-info span {
-        color: var(--text-muted);
-        font-size: 0.75rem;
-        font-weight: 800;
+      .space-tag {
+        display: block;
+        color: var(--brand-orange-dark);
+        font-size: 0.68rem;
+        font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.06em;
+        margin-bottom: 0.1rem;
+      }
+
+      .user-info span:not(.space-tag) {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 700;
       }
 
       .page-kicker strong,
@@ -507,6 +516,19 @@ export class ShellComponent implements OnInit {
 
   userInitial(): string {
     return this.auth.currentUser()?.fullName?.trim().charAt(0).toUpperCase() || 'U';
+  }
+
+  spaceLabel(): string {
+    if (this.auth.hasAnyRole(['CLIENT'])) {
+      return 'Espace client';
+    }
+    if (this.auth.hasAnyRole(['AGENT'])) {
+      return 'Espace agent';
+    }
+    if (this.auth.hasAnyRole(['SUPERVISEUR'])) {
+      return 'Espace superviseur';
+    }
+    return 'Espace admin';
   }
 
   closeMenu(): void {

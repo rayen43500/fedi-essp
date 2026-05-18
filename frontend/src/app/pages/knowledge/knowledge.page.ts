@@ -1,9 +1,18 @@
-import { Component, OnInit, signal } from '@angular/core';
+import {
+  AfterViewChecked,
+  Component,
+  ElementRef,
+  OnInit,
+  QueryList,
+  ViewChildren,
+  signal
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { KnowledgeArticle } from '../../core/models';
 import { AuthService } from '../../core/auth.service';
+import { elementOverflows } from '../../shared/expandable-text.util';
 
 @Component({
   selector: 'app-knowledge-page',
@@ -73,18 +82,18 @@ import { AuthService } from '../../core/auth.service';
           <div class="article-body">
             <div
               class="content-wrap"
-              [class.is-clamped]="needsExpand(item.content) && expandedArticleId() !== item.id"
+              [class.is-clamped]="expandedArticleId() !== item.id"
             >
-              <p class="article-content">{{ item.content }}</p>
+              <p class="article-content" #articleText>{{ item.content }}</p>
               <div
                 class="fade-overlay"
-                *ngIf="needsExpand(item.content) && expandedArticleId() !== item.id"
+                *ngIf="isExpandable(item.id) && expandedArticleId() !== item.id"
                 aria-hidden="true"
               ></div>
             </div>
 
             <button
-              *ngIf="needsExpand(item.content)"
+              *ngIf="isExpandable(item.id)"
               type="button"
               class="read-more"
               (click)="toggleArticle(item.id)"
@@ -307,6 +316,7 @@ import { AuthService } from '../../core/auth.service';
         padding: 0;
         display: flex;
         flex-direction: column;
+        min-width: 0;
         overflow: hidden;
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
@@ -317,7 +327,13 @@ import { AuthService } from '../../core/auth.service';
       }
 
       .article-card.expanded {
+        overflow: visible;
         border-color: rgba(0, 89, 163, 0.35);
+      }
+
+      .article-card h2 {
+        word-break: break-word;
+        overflow-wrap: break-word;
       }
 
       .card-top {
@@ -361,14 +377,18 @@ import { AuthService } from '../../core/auth.service';
 
       .content-wrap {
         position: relative;
+        min-width: 0;
+        max-width: 100%;
       }
 
       .article-content {
         color: var(--text-secondary);
         line-height: 1.65;
         white-space: pre-line;
+        word-break: break-word;
+        overflow-wrap: break-word;
         margin: 0;
-        transition: max-height 0.35s ease;
+        max-width: 100%;
       }
 
       .content-wrap.is-clamped .article-content {
@@ -376,7 +396,12 @@ import { AuthService } from '../../core/auth.service';
         -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        max-height: 6.6em;
+        text-overflow: ellipsis;
+      }
+
+      .content-wrap:not(.is-clamped) .article-content {
+        overflow: visible;
+        display: block;
       }
 
       .fade-overlay {
@@ -384,19 +409,22 @@ import { AuthService } from '../../core/auth.service';
         left: 0;
         right: 0;
         bottom: 0;
-        height: 3.2rem;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 88%);
+        height: 2rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 95%);
         pointer-events: none;
+        z-index: 1;
       }
 
       .read-more {
+        position: relative;
+        z-index: 2;
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
         border: 0;
-        background: transparent;
+        background: #fff;
         color: var(--brand-blue);
-        padding: 0.15rem 0;
+        padding: 0.35rem 0 0.15rem;
         font-size: 0.88rem;
         font-weight: 900;
         cursor: pointer;
@@ -490,14 +518,19 @@ import { AuthService } from '../../core/auth.service';
     `
   ]
 })
-export class KnowledgePage implements OnInit {
+export class KnowledgePage implements OnInit, AfterViewChecked {
+  @ViewChildren('articleText') articleTexts!: QueryList<ElementRef<HTMLParagraphElement>>;
+
   readonly articles = signal<KnowledgeArticle[]>([]);
   readonly query = signal('');
   readonly showForm = signal(false);
   readonly expandedArticleId = signal<number | null>(null);
+  readonly expandableIds = signal<Set<number>>(new Set());
   readonly saving = signal(false);
   readonly notice = signal('');
   readonly error = signal('');
+
+  private measureScheduled = false;
 
   readonly form;
 
@@ -519,22 +552,37 @@ export class KnowledgePage implements OnInit {
 
   load(): void {
     this.api.knowledge(this.query()).subscribe({
-      next: (res: KnowledgeArticle[]) => this.articles.set(res),
+      next: (res: KnowledgeArticle[]) => {
+        this.articles.set(res);
+        this.expandedArticleId.set(null);
+        this.scheduleMeasure();
+      },
       error: () => this.error.set('Impossible de charger les articles.')
     });
+  }
+
+  ngAfterViewChecked(): void {
+    this.scheduleMeasure();
+  }
+
+  isExpandable(id: number): boolean {
+    if (this.expandableIds().has(id)) {
+      return true;
+    }
+    const article = this.articles().find((a) => a.id === id);
+    return article ? this.isContentLong(article.content) : false;
+  }
+
+  private isContentLong(content: string): boolean {
+    if (!content) {
+      return false;
+    }
+    return content.length > 280 || content.split('\n').length > 4;
   }
 
   onSearch(value: string): void {
     this.query.set(value);
     this.load();
-  }
-
-  needsExpand(content: string): boolean {
-    if (!content) {
-      return false;
-    }
-    const lines = content.split('\n').length;
-    return content.length > 220 || lines > 4;
   }
 
   formatDate(value: string): string {
@@ -550,6 +598,47 @@ export class KnowledgePage implements OnInit {
 
   toggleArticle(id: number): void {
     this.expandedArticleId.update((current) => (current === id ? null : id));
+    this.scheduleMeasure();
+  }
+
+  private scheduleMeasure(): void {
+    if (this.measureScheduled) {
+      return;
+    }
+    this.measureScheduled = true;
+    requestAnimationFrame(() => {
+      this.measureScheduled = false;
+      this.measureExpandable();
+    });
+  }
+
+  private measureExpandable(): void {
+    const list = this.articles();
+    const texts = this.articleTexts?.toArray() ?? [];
+    if (!list.length || texts.length !== list.length) {
+      return;
+    }
+
+    const ids = new Set<number>();
+    texts.forEach((ref, index) => {
+      const article = list[index];
+      const el = ref.nativeElement;
+      if (this.expandedArticleId() === article.id) {
+        if (this.expandableIds().has(article.id)) {
+          ids.add(article.id);
+        }
+        return;
+      }
+      if (elementOverflows(el) || this.isContentLong(article.content)) {
+        ids.add(article.id);
+      }
+    });
+
+    const prev = this.expandableIds();
+    if (prev.size === ids.size && [...prev].every((id) => ids.has(id))) {
+      return;
+    }
+    this.expandableIds.set(ids);
   }
 
   create(): void {

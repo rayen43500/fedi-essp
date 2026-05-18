@@ -210,7 +210,21 @@ import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType, UserS
             <span class="status-badge" [attr.data-status]="ticket.status">{{ statusLabel(ticket.status) }}</span>
           </div>
 
-          <p class="desc">{{ ticket.description }}</p>
+          <div
+            class="desc-box"
+            [class.expanded]="expandedDescId() === ticket.id"
+            [class.clamped]="isDescLong(ticket.description) && expandedDescId() !== ticket.id"
+          >
+            <p class="desc">{{ ticket.description }}</p>
+          </div>
+          <button
+            *ngIf="isDescLong(ticket.description)"
+            type="button"
+            class="desc-toggle"
+            (click)="toggleDesc(ticket.id)"
+          >
+            {{ expandedDescId() === ticket.id ? 'Réduire la description' : 'Lire la suite' }}
+          </button>
           <a class="attachment-link" *ngIf="ticket.attachmentUrl" [href]="ticket.attachmentUrl" target="_blank" rel="noreferrer">
             Ouvrir la piece jointe
           </a>
@@ -583,6 +597,9 @@ import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType, UserS
         padding: 1.2rem;
         display: grid;
         gap: 1rem;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
       }
 
       .ticket-top {
@@ -675,9 +692,47 @@ import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType, UserS
         color: var(--text-secondary);
       }
 
+      .desc-box {
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .desc-box.clamped .desc {
+        display: -webkit-box;
+        -webkit-line-clamp: 5;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .desc-box.expanded .desc,
+      .desc-box:not(.clamped) .desc {
+        display: block;
+        overflow: visible;
+      }
+
       .desc {
         color: var(--text-secondary);
         line-height: 1.58;
+        white-space: pre-line;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+        margin: 0;
+      }
+
+      .desc-toggle {
+        justify-self: start;
+        border: 0;
+        background: transparent;
+        color: var(--brand-blue);
+        font-size: 0.86rem;
+        font-weight: 900;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .desc-toggle:hover {
+        text-decoration: underline;
       }
 
       .attachment-link {
@@ -748,6 +803,10 @@ import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType, UserS
 
       .comments p {
         color: var(--text-secondary);
+        white-space: pre-line;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
       }
 
       .ticket-actions {
@@ -880,6 +939,7 @@ import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType, UserS
 export class TicketsPage implements OnInit {
   readonly tickets = signal<Ticket[]>([]);
   readonly agents = signal<UserSummary[]>([]);
+  readonly expandedDescId = signal<number | null>(null);
   readonly saving = signal(false);
   readonly notice = signal('');
   readonly error = signal('');
@@ -1147,6 +1207,17 @@ export class TicketsPage implements OnInit {
 
   isStaff(): boolean {
     return this.auth.hasAnyRole(['ADMIN', 'AGENT', 'SUPERVISEUR']);
+  }
+
+  isDescLong(description: string): boolean {
+    if (!description) {
+      return false;
+    }
+    return description.length > 260 || description.split('\n').length > 5;
+  }
+
+  toggleDesc(id: number): void {
+    this.expandedDescId.update((current) => (current === id ? null : id));
   }
 
   isManager(): boolean {

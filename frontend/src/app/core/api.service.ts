@@ -94,6 +94,10 @@ export class ApiService {
     return this.http.get<DashboardCharts>(`${this.api}/dashboard/charts`);
   }
 
+  myDashboardCharts() {
+    return this.http.get<DashboardCharts>(`${this.api}/dashboard/my/charts`);
+  }
+
   users() {
     return this.http.get<UserSummary[]>(`${this.api}/auth/users`);
   }
@@ -129,6 +133,10 @@ export class ApiService {
 
   chatbotChat(message: string, history: ChatMessage[] = []) {
     return this.http.post<ChatbotReply>(`${this.api}/chatbot/chat`, { message, history });
+  }
+
+  chatbotCreateTicket(message: string) {
+    return this.http.post<ChatbotReply>(`${this.api}/chatbot/create-ticket`, { message, history: [] });
   }
 
   notifications() {

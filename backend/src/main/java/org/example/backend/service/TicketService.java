@@ -282,6 +282,31 @@ public class TicketService {
         return new AuthDtos.DashboardCharts(byStatus, byPriority);
     }
 
+    @Transactional(readOnly = true)
+    public AuthDtos.DashboardCharts dashboardChartsForUser(UserAccount user) {
+        List<Ticket> mine = ticketRepository.findAll().stream()
+                .filter(t -> !t.isArchived())
+                .filter(t -> t.getClient().getId().equals(user.getId()))
+                .toList();
+
+        List<AuthDtos.ChartSlice> byStatus = List.of(
+                slice("Ouverts", mine.stream().filter(t -> t.getStatus() == TicketStatus.OUVERT).count()),
+                slice("En cours", mine.stream().filter(t -> t.getStatus() == TicketStatus.EN_COURS).count()),
+                slice("En attente", mine.stream().filter(t -> t.getStatus() == TicketStatus.EN_ATTENTE).count()),
+                slice("Resolus", mine.stream().filter(t -> t.getStatus() == TicketStatus.RESOLU).count()),
+                slice("Fermes", mine.stream().filter(t -> t.getStatus() == TicketStatus.FERME).count())
+        );
+
+        List<AuthDtos.ChartSlice> byPriority = List.of(
+                slice("Critique", mine.stream().filter(t -> t.getPriority() == TicketPriority.CRITIQUE).count()),
+                slice("Elevee", mine.stream().filter(t -> t.getPriority() == TicketPriority.ELEVEE).count()),
+                slice("Moyenne", mine.stream().filter(t -> t.getPriority() == TicketPriority.MOYENNE).count()),
+                slice("Faible", mine.stream().filter(t -> t.getPriority() == TicketPriority.FAIBLE).count())
+        );
+
+        return new AuthDtos.DashboardCharts(byStatus, byPriority);
+    }
+
     private AuthDtos.ChartSlice slice(String label, long value) {
         return new AuthDtos.ChartSlice(label, value);
     }

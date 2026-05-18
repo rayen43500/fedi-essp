@@ -1,80 +1,128 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { ApiService } from '../../core/api.service';
-import { ChatbotReply } from '../../core/models';
+import { AuthService } from '../../core/auth.service';
+import { ChatMessage, KnowledgeArticle } from '../../core/models';
+
+interface UiMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 @Component({
   selector: 'app-chatbot-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <section class="chatbot-page">
       <div class="page-header">
         <div>
           <p class="eyebrow">Aide guidée</p>
           <h1>Assistant support Topnet</h1>
+          <p class="status" [class.on]="assistantOn()">
+            {{ assistantOn() ? 'IA Gemini active' : 'Mode secours (configurez GEMINI_API_KEY)' }}
+          </p>
         </div>
         <p class="subtitle">
-          Posez une question technique. L’assistant propose une réponse courte et les articles proches de votre demande.
+          Discutez avec l'assistant. Il consulte la base de connaissances et peut créer un ticket à votre place si nécessaire.
         </p>
       </div>
 
       <div class="chat-container">
-        <form class="chat-input-area" (ngSubmit)="ask()">
-          <label for="support-question">Votre question</label>
+        <div class="messages" *ngIf="messages().length">
+          <div
+            *ngFor="let msg of messages()"
+            class="message"
+            [class.user]="msg.role === 'user'"
+            [class.assistant]="msg.role === 'assistant'"
+          >
+            <div class="bubble">
+              <span>{{ msg.role === 'user' ? 'Vous' : 'Assistant' }}</span>
+              <p>{{ msg.content }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="ticket-banner" *ngIf="lastTicketId() as ticketId">
+          <strong>Ticket #{{ ticketId }} créé par l'assistant</strong>
+          <p>Votre demande a été enregistrée. Suivez son avancement dans vos tickets.</p>
+          <a routerLink="/app/tickets" class="btn-link">Voir mes tickets</a>
+        </div>
+
+        <div class="suggestions" *ngIf="suggestions().length">
+          <p class="eyebrow">Articles liés</p>
+          <div class="suggestions-list">
+            <article *ngFor="let s of suggestions()" class="suggestion-card">
+              <span class="suggestion-category">{{ s.category }}</span>
+              <strong>{{ s.title }}</strong>
+              <div
+                class="content-wrap"
+                [class.is-clamped]="needsExpand(s.content) && expandedSuggestionId() !== s.id"
+              >
+                <p class="suggestion-content">{{ s.content }}</p>
+                <div
+                  class="fade-overlay"
+                  *ngIf="needsExpand(s.content) && expandedSuggestionId() !== s.id"
+                  aria-hidden="true"
+                ></div>
+              </div>
+              <button
+                *ngIf="needsExpand(s.content)"
+                type="button"
+                class="read-more"
+                (click)="toggleSuggestion(s.id)"
+                [attr.aria-expanded]="expandedSuggestionId() === s.id"
+              >
+                <span>{{ expandedSuggestionId() === s.id ? 'Réduire' : "Lire l'article" }}</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  [class.rotated]="expandedSuggestionId() === s.id"
+                >
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </button>
+            </article>
+          </div>
+        </div>
+
+        <div class="empty-chat" *ngIf="!messages().length && !loading()">
+          <strong>Commencez la conversation</strong>
+          <p>Décrivez votre problème. L'assistant peut répondre ou ouvrir un ticket pour vous.</p>
+        </div>
+
+        <form class="chat-input-area" (ngSubmit)="send()">
+          <label for="support-question">Votre message</label>
           <div class="input-wrapper">
-            <textarea id="support-question" [(ngModel)]="question" name="question" rows="4" placeholder="Ex. Comment configurer mon accès VPN ?"></textarea>
+            <textarea
+              id="support-question"
+              [(ngModel)]="question"
+              name="question"
+              rows="3"
+              placeholder="Ex. Mon VPN ne se connecte plus depuis ce matin..."
+              [disabled]="loading()"
+            ></textarea>
             <button type="submit" [disabled]="!question.trim() || loading()" class="btn-send">
-              <span>{{ loading() ? 'Analyse en cours...' : 'Envoyer' }}</span>
-              <svg *ngIf="!loading()" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
+              <span>{{ loading() ? 'Réflexion...' : 'Envoyer' }}</span>
             </button>
           </div>
         </form>
 
         <p class="error" *ngIf="error()">{{ error() }}</p>
-
-        <div class="chat-response" *ngIf="reply() as r">
-          <div class="bot-answer">
-            <div class="bot-avatar">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z"/></svg>
-            </div>
-            <div class="answer-bubble">
-              <span>Réponse proposée</span>
-              <p>{{ r.answer }}</p>
-            </div>
-          </div>
-
-          <div class="suggestions" *ngIf="r.suggestions.length">
-            <div class="suggestions-header">
-              <div>
-                <p class="eyebrow">Articles liés</p>
-                <h2>À consulter ensuite</h2>
-              </div>
-            </div>
-            <div class="suggestions-list">
-              <article *ngFor="let s of r.suggestions" class="suggestion-card">
-                <strong>{{ s.title }}</strong>
-                <p [class.clamped]="expandedSuggestionId() !== s.id">{{ s.content }}</p>
-                <button type="button" class="btn-link" (click)="toggleSuggestion(s.id)">
-                  {{ expandedSuggestionId() === s.id ? 'Réduire' : "Lire l'article" }}
-                </button>
-              </article>
-            </div>
-          </div>
-        </div>
-
-        <div class="empty-chat" *ngIf="!reply() && !loading()">
-          <strong>Commencez par une question précise.</strong>
-          <p>Ajoutez le contexte, le message d’erreur et ce que vous avez déjà essayé.</p>
-        </div>
       </div>
     </section>
   `,
   styles: [
     `
       .chatbot-page {
-        max-width: 940px;
+        max-width: 900px;
         margin: 0 auto;
         display: grid;
         gap: 1.6rem;
@@ -82,9 +130,7 @@ import { ChatbotReply } from '../../core/models';
 
       .page-header {
         display: grid;
-        grid-template-columns: minmax(0, 0.9fr) minmax(280px, 0.6fr);
-        gap: 1.5rem;
-        align-items: end;
+        gap: 0.75rem;
       }
 
       .eyebrow {
@@ -97,8 +143,19 @@ import { ChatbotReply } from '../../core/models';
       }
 
       h1 {
-        font-size: 2.2rem;
+        font-size: 2.1rem;
         line-height: 1.15;
+      }
+
+      .status {
+        margin-top: 0.35rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: var(--warning);
+      }
+
+      .status.on {
+        color: var(--success);
       }
 
       .subtitle {
@@ -111,8 +168,72 @@ import { ChatbotReply } from '../../core/models';
         gap: 1rem;
       }
 
+      .messages {
+        display: grid;
+        gap: 0.75rem;
+        max-height: 420px;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+      }
+
+      .message {
+        display: flex;
+      }
+
+      .message.user {
+        justify-content: flex-end;
+      }
+
+      .bubble {
+        max-width: min(640px, 92%);
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 0.85rem 1rem;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .message.user .bubble {
+        background: var(--brand-blue-soft);
+        border-color: rgba(0, 89, 163, 0.18);
+      }
+
+      .bubble span {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-bottom: 0.35rem;
+      }
+
+      .bubble p {
+        line-height: 1.65;
+        white-space: pre-line;
+      }
+
+      .ticket-banner {
+        background: var(--success-soft);
+        border: 1px solid rgba(24, 135, 84, 0.22);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      .ticket-banner p {
+        color: var(--text-secondary);
+      }
+
+      .btn-link {
+        width: fit-content;
+        color: var(--brand-blue);
+        font-weight: 900;
+        text-decoration: none;
+      }
+
       .chat-input-area,
-      .answer-bubble,
       .suggestion-card,
       .empty-chat {
         background: #fff;
@@ -122,9 +243,9 @@ import { ChatbotReply } from '../../core/models';
       }
 
       .chat-input-area {
-        padding: 1.2rem;
+        padding: 1.1rem;
         display: grid;
-        gap: 0.75rem;
+        gap: 0.65rem;
       }
 
       .chat-input-area label {
@@ -133,16 +254,14 @@ import { ChatbotReply } from '../../core/models';
 
       .input-wrapper {
         display: grid;
-        gap: 0.85rem;
+        gap: 0.75rem;
       }
 
       textarea {
         width: 100%;
         border: 1px solid var(--line);
         border-radius: var(--radius-md);
-        padding: 0.95rem;
-        background: #fff;
-        color: var(--text-primary);
+        padding: 0.9rem;
         resize: vertical;
         line-height: 1.55;
       }
@@ -150,27 +269,110 @@ import { ChatbotReply } from '../../core/models';
       textarea:focus {
         outline: none;
         border-color: var(--brand-blue);
-        box-shadow: 0 0 0 4px rgba(0, 89, 163, 0.10);
+        box-shadow: 0 0 0 4px rgba(0, 89, 163, 0.1);
       }
 
       .btn-send {
         justify-self: end;
         min-height: 42px;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.65rem;
+        border: 0;
+        border-radius: var(--radius-md);
         background: var(--brand-blue);
         color: #fff;
-        border: 0;
-        padding: 0.7rem 1rem;
-        border-radius: var(--radius-md);
         font-weight: 900;
+        padding: 0.65rem 1rem;
         cursor: pointer;
       }
 
       .btn-send:disabled {
-        opacity: 0.58;
+        opacity: 0.55;
         cursor: not-allowed;
+      }
+
+      .suggestions-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 0.85rem;
+      }
+
+      .suggestion-card {
+        padding: 1rem;
+        display: grid;
+        gap: 0.5rem;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .suggestion-category {
+        width: fit-content;
+        padding: 0.2rem 0.5rem;
+        background: var(--brand-blue-soft);
+        color: var(--brand-blue);
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .content-wrap {
+        position: relative;
+      }
+
+      .suggestion-content {
+        color: var(--text-secondary);
+        line-height: 1.55;
+        white-space: pre-line;
+        margin: 0;
+      }
+
+      .content-wrap.is-clamped .suggestion-content {
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-height: 6.6em;
+      }
+
+      .fade-overlay {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 2.8rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 90%);
+        pointer-events: none;
+      }
+
+      .read-more {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border: 0;
+        background: transparent;
+        color: var(--brand-blue);
+        padding: 0;
+        font-size: 0.84rem;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .read-more svg {
+        transition: transform 0.25s ease;
+      }
+
+      .read-more svg.rotated {
+        transform: rotate(180deg);
+      }
+
+      .empty-chat {
+        padding: 1.1rem;
+      }
+
+      .empty-chat p {
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
       }
 
       .error {
@@ -181,142 +383,55 @@ import { ChatbotReply } from '../../core/models';
         padding: 0.85rem 1rem;
         font-weight: 800;
       }
-
-      .chat-response {
-        display: grid;
-        gap: 1.2rem;
-      }
-
-      .bot-answer {
-        display: grid;
-        grid-template-columns: 44px 1fr;
-        gap: 0.85rem;
-      }
-
-      .bot-avatar {
-        width: 44px;
-        height: 44px;
-        display: grid;
-        place-items: center;
-        background: var(--brand-blue);
-        color: #fff;
-        border-radius: var(--radius-md);
-      }
-
-      .answer-bubble {
-        padding: 1.1rem;
-      }
-
-      .answer-bubble span {
-        display: block;
-        color: var(--brand-blue);
-        font-size: 0.76rem;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-bottom: 0.45rem;
-      }
-
-      .answer-bubble p {
-        color: var(--text-primary);
-        line-height: 1.7;
-      }
-
-      .suggestions-header h2 {
-        font-size: 1.15rem;
-      }
-
-      .suggestions-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 1rem;
-      }
-
-      .suggestion-card {
-        padding: 1rem;
-        display: grid;
-        gap: 0.7rem;
-      }
-
-      .suggestion-card strong {
-        font-size: 1rem;
-      }
-
-      .suggestion-card p {
-        color: var(--text-secondary);
-        line-height: 1.58;
-        white-space: pre-line;
-      }
-
-      .suggestion-card p.clamped {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-
-      .btn-link {
-        justify-self: start;
-        border: 1px solid var(--line);
-        background: var(--surface-soft);
-        color: var(--brand-blue);
-        border-radius: var(--radius-md);
-        padding: 0.5rem 0.7rem;
-        font-weight: 900;
-        cursor: pointer;
-      }
-
-      .empty-chat {
-        padding: 1.3rem;
-      }
-
-      .empty-chat strong {
-        display: block;
-        margin-bottom: 0.3rem;
-      }
-
-      .empty-chat p {
-        color: var(--text-secondary);
-      }
-
-      @media (max-width: 760px) {
-        .page-header,
-        .bot-answer {
-          grid-template-columns: 1fr;
-        }
-
-        h1 {
-          font-size: 1.8rem;
-        }
-
-        .bot-avatar {
-          display: none;
-        }
-      }
     `
   ]
 })
-export class ChatbotPage {
+export class ChatbotPage implements OnInit {
   question = '';
-  readonly reply = signal<ChatbotReply | null>(null);
+  readonly messages = signal<UiMessage[]>([]);
+  readonly suggestions = signal<KnowledgeArticle[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
+  readonly assistantOn = signal(false);
+  readonly lastTicketId = signal<number | null>(null);
   readonly expandedSuggestionId = signal<number | null>(null);
 
-  constructor(private readonly api: ApiService) {}
+  constructor(
+    private readonly api: ApiService,
+    readonly auth: AuthService
+  ) {}
 
-  ask(): void {
+  ngOnInit(): void {
+    this.api.assistantStatus().subscribe({
+      next: (res) => this.assistantOn.set(res.enabled),
+      error: () => this.assistantOn.set(false)
+    });
+  }
+
+  send(): void {
     const value = this.question.trim();
-    if (!value) {
+    if (!value || this.loading()) {
       return;
     }
 
+    const history: ChatMessage[] = this.messages().map((m) => ({
+      role: m.role,
+      content: m.content
+    }));
+
+    this.messages.update((list) => [...list, { role: 'user', content: value }]);
+    this.question = '';
     this.loading.set(true);
     this.error.set('');
 
-    this.api.chatbot(value).subscribe({
+    this.api.chatbotChat(value, history).subscribe({
       next: (res) => {
-        this.reply.set(res);
+        this.messages.update((list) => [...list, { role: 'assistant', content: res.answer }]);
+        this.suggestions.set(res.suggestions ?? []);
+        this.assistantOn.set(res.assistantEnabled ?? false);
+        if (res.ticketCreated && res.createdTicket) {
+          this.lastTicketId.set(res.createdTicket.id);
+        }
         this.loading.set(false);
       },
       error: () => {
@@ -324,6 +439,13 @@ export class ChatbotPage {
         this.error.set("L'assistant n'a pas pu répondre pour le moment.");
       }
     });
+  }
+
+  needsExpand(content: string): boolean {
+    if (!content) {
+      return false;
+    }
+    return content.length > 220 || content.split('\n').length > 4;
   }
 
   toggleSuggestion(id: number): void {

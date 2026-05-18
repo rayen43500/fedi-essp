@@ -69,9 +69,31 @@ export interface KnowledgeArticle {
   authorName: string;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface ChatbotReply {
   answer: string;
   suggestions: KnowledgeArticle[];
+  assistantEnabled: boolean;
+  ticketCreated: boolean;
+  createdTicket?: Ticket;
+}
+
+export interface AssistantStatus {
+  enabled: boolean;
+}
+
+export interface ChartSlice {
+  label: string;
+  value: number;
+}
+
+export interface DashboardCharts {
+  ticketsByStatus: ChartSlice[];
+  ticketsByPriority: ChartSlice[];
 }
 
 export interface NotificationView {

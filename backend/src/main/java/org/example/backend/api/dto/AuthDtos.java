@@ -149,9 +149,41 @@ public final class AuthDtos {
     ) {
     }
 
+    public record ChatMessage(
+            String role,
+            String content
+    ) {
+    }
+
+    public record ChatRequest(
+            @NotBlank String message,
+            List<ChatMessage> history
+    ) {
+    }
+
     public record ChatbotReply(
             String answer,
-            List<KnowledgeView> suggestions
+            List<KnowledgeView> suggestions,
+            boolean assistantEnabled,
+            boolean ticketCreated,
+            TicketView createdTicket
+    ) {
+    }
+
+    public record AssistantStatus(
+            boolean enabled
+    ) {
+    }
+
+    public record ChartSlice(
+            String label,
+            long value
+    ) {
+    }
+
+    public record DashboardCharts(
+            List<ChartSlice> ticketsByStatus,
+            List<ChartSlice> ticketsByPriority
     ) {
     }
 

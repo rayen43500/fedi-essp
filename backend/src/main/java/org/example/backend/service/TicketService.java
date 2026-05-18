@@ -258,6 +258,34 @@ public class TicketService {
         return new AuthDtos.DashboardStats(total, open, inProgress, waiting, resolved, closed, critical, overdue, unassigned, archived, avgResolutionHours, satisfactionRate);
     }
 
+    @Transactional(readOnly = true)
+    public AuthDtos.DashboardCharts dashboardCharts() {
+        List<Ticket> active = ticketRepository.findAll().stream()
+                .filter(t -> !t.isArchived())
+                .toList();
+
+        List<AuthDtos.ChartSlice> byStatus = List.of(
+                slice("Ouverts", active.stream().filter(t -> t.getStatus() == TicketStatus.OUVERT).count()),
+                slice("En cours", active.stream().filter(t -> t.getStatus() == TicketStatus.EN_COURS).count()),
+                slice("En attente", active.stream().filter(t -> t.getStatus() == TicketStatus.EN_ATTENTE).count()),
+                slice("Resolus", active.stream().filter(t -> t.getStatus() == TicketStatus.RESOLU).count()),
+                slice("Fermes", active.stream().filter(t -> t.getStatus() == TicketStatus.FERME).count())
+        );
+
+        List<AuthDtos.ChartSlice> byPriority = List.of(
+                slice("Critique", active.stream().filter(t -> t.getPriority() == TicketPriority.CRITIQUE).count()),
+                slice("Elevee", active.stream().filter(t -> t.getPriority() == TicketPriority.ELEVEE).count()),
+                slice("Moyenne", active.stream().filter(t -> t.getPriority() == TicketPriority.MOYENNE).count()),
+                slice("Faible", active.stream().filter(t -> t.getPriority() == TicketPriority.FAIBLE).count())
+        );
+
+        return new AuthDtos.DashboardCharts(byStatus, byPriority);
+    }
+
+    private AuthDtos.ChartSlice slice(String label, long value) {
+        return new AuthDtos.ChartSlice(label, value);
+    }
+
     private Ticket findTicket(Long id) {
         return ticketRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket introuvable"));

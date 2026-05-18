@@ -1,9 +1,12 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnInit, ViewChild, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Chart, registerables } from 'chart.js';
 import { ApiService } from '../../core/api.service';
-import { DashboardStats, Ticket } from '../../core/models';
+import { DashboardCharts, DashboardStats, Ticket } from '../../core/models';
 import { AuthService } from '../../core/auth.service';
+
+Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard-page',
@@ -69,7 +72,7 @@ import { AuthService } from '../../core/auth.service';
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
           </span>
           <div>
-            <span>SLA depasse</span>
+            <span>SLA dépassé</span>
             <strong>{{ s.overdueTickets }}</strong>
           </div>
         </article>
@@ -89,7 +92,7 @@ import { AuthService } from '../../core/auth.service';
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
           </span>
           <div>
-            <span>Non assignes</span>
+            <span>Non assignés</span>
             <strong>{{ s.unassignedTickets }}</strong>
           </div>
         </article>
@@ -115,6 +118,17 @@ import { AuthService } from '../../core/auth.service';
         </article>
       </div>
 
+      <div class="charts-panel" *ngIf="auth.hasAnyRole(['ADMIN', 'AGENT', 'SUPERVISEUR']) && charts()">
+        <article class="chart-card">
+          <h2>Répartition par statut</h2>
+          <canvas #statusChart></canvas>
+        </article>
+        <article class="chart-card">
+          <h2>Répartition par priorité</h2>
+          <canvas #priorityChart></canvas>
+        </article>
+      </div>
+
       <div class="insight-panel" *ngIf="auth.hasAnyRole(['ADMIN', 'AGENT', 'SUPERVISEUR']) && stats() as s">
         <div>
           <span class="panel-label">Temps moyen de résolution</span>
@@ -122,8 +136,8 @@ import { AuthService } from '../../core/auth.service';
         </div>
         <p>
           {{ s.overdueTickets }} ticket{{ s.overdueTickets > 1 ? 's' : '' }} en retard,
-          {{ s.unassignedTickets }} non assigne{{ s.unassignedTickets > 1 ? 's' : '' }} et
-          {{ s.archivedTickets }} archive{{ s.archivedTickets > 1 ? 's' : '' }}.
+          {{ s.unassignedTickets }} non assigné{{ s.unassignedTickets > 1 ? 's' : '' }} et
+          {{ s.archivedTickets }} archivé{{ s.archivedTickets > 1 ? 's' : '' }}.
         </p>
         <a routerLink="/app/tickets">Voir les tickets</a>
       </div>
@@ -161,9 +175,9 @@ import { AuthService } from '../../core/auth.service';
           <span class="action-icon orange">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
           </span>
-          <h2>Lire les guides</h2>
+          <h2>Base de connaissances</h2>
           <p>Retrouvez des réponses simples pour les problèmes fréquents avant d’attendre un agent.</p>
-          <a routerLink="/app/knowledge" class="btn secondary">Voir les guides</a>
+          <a routerLink="/app/knowledge" class="btn secondary">Consulter les guides</a>
         </article>
 
         <article>
@@ -295,6 +309,31 @@ import { AuthService } from '../../core/auth.service';
         margin-top: 0.2rem;
         font-family: 'Sora', sans-serif;
         font-size: 1.7rem;
+      }
+
+      .charts-panel {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+      }
+
+      .chart-card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+        padding: 1.1rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .chart-card h2 {
+        font-size: 1rem;
+      }
+
+      .chart-card canvas {
+        width: 100% !important;
+        height: 240px !important;
       }
 
       .insight-panel {
@@ -431,10 +470,17 @@ import { AuthService } from '../../core/auth.service';
     `
   ]
 })
-export class DashboardPage implements OnInit {
+export class DashboardPage implements OnInit, AfterViewInit {
+  @ViewChild('statusChart') statusChartRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('priorityChart') priorityChartRef?: ElementRef<HTMLCanvasElement>;
+
   readonly stats = signal<DashboardStats | null>(null);
+  readonly charts = signal<DashboardCharts | null>(null);
   readonly clientTickets = signal<Ticket[]>([]);
   readonly error = signal('');
+
+  private statusChart?: Chart;
+  private priorityChart?: Chart;
   readonly clientActiveTickets = computed(() =>
     this.clientTickets().filter((ticket) => ticket.status === 'OUVERT' || ticket.status === 'EN_COURS' || ticket.status === 'EN_ATTENTE').length
   );
@@ -457,6 +503,12 @@ export class DashboardPage implements OnInit {
         next: (res: DashboardStats) => this.stats.set(res),
         error: () => this.error.set("Impossible de charger les indicateurs pour le moment.")
       });
+      this.api.dashboardCharts().subscribe({
+        next: (res: DashboardCharts) => {
+          this.charts.set(res);
+          setTimeout(() => this.renderCharts(res), 0);
+        }
+      });
     }
     if (this.auth.hasAnyRole(['CLIENT'])) {
       this.api.tickets().subscribe({
@@ -466,7 +518,55 @@ export class DashboardPage implements OnInit {
     }
   }
 
+  ngAfterViewInit(): void {
+    const data = this.charts();
+    if (data) {
+      this.renderCharts(data);
+    }
+  }
+
   firstName(): string {
     return this.auth.currentUser()?.fullName?.split(' ')[0] || '';
+  }
+
+  private renderCharts(data: DashboardCharts): void {
+    const statusCanvas = this.statusChartRef?.nativeElement;
+    const priorityCanvas = this.priorityChartRef?.nativeElement;
+    if (!statusCanvas || !priorityCanvas) {
+      return;
+    }
+
+    this.statusChart?.destroy();
+    this.priorityChart?.destroy();
+
+    this.statusChart = new Chart(statusCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: data.ticketsByStatus.map((s) => s.label),
+        datasets: [{
+          data: data.ticketsByStatus.map((s) => s.value),
+          backgroundColor: ['#0059a3', '#f28c28', '#c9a227', '#188754', '#6c757d']
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    this.priorityChart = new Chart(priorityCanvas, {
+      type: 'bar',
+      data: {
+        labels: data.ticketsByPriority.map((s) => s.label),
+        datasets: [{
+          label: 'Tickets',
+          data: data.ticketsByPriority.map((s) => s.value),
+          backgroundColor: ['#c2413d', '#f28c28', '#0059a3', '#188754']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
   }
 }

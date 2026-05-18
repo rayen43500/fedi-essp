@@ -59,18 +59,61 @@ import { AuthService } from '../../core/auth.service';
       <p class="error" *ngIf="error()">{{ error() }}</p>
 
       <div class="articles-grid">
-        <article class="article-card" *ngFor="let item of articles()">
-          <div class="article-category">{{ item.category }}</div>
+        <article
+          class="article-card"
+          *ngFor="let item of articles()"
+          [class.expanded]="expandedArticleId() === item.id"
+        >
+          <div class="card-top">
+            <div class="article-category">{{ item.category }}</div>
+            <time class="article-date">{{ formatDate(item.updatedAt) }}</time>
+          </div>
           <h2>{{ item.title }}</h2>
-          <p [class.clamped]="expandedArticleId() !== item.id">{{ item.content }}</p>
+
+          <div class="article-body">
+            <div
+              class="content-wrap"
+              [class.is-clamped]="needsExpand(item.content) && expandedArticleId() !== item.id"
+            >
+              <p class="article-content">{{ item.content }}</p>
+              <div
+                class="fade-overlay"
+                *ngIf="needsExpand(item.content) && expandedArticleId() !== item.id"
+                aria-hidden="true"
+              ></div>
+            </div>
+
+            <button
+              *ngIf="needsExpand(item.content)"
+              type="button"
+              class="read-more"
+              (click)="toggleArticle(item.id)"
+              [attr.aria-expanded]="expandedArticleId() === item.id"
+            >
+              <span>{{ expandedArticleId() === item.id ? 'Réduire' : 'Lire la suite' }}</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                [class.rotated]="expandedArticleId() === item.id"
+              >
+                <path d="m6 9 6 6 6-6"/>
+              </svg>
+            </button>
+          </div>
+
           <div class="article-footer">
             <div class="author">
               <div class="avatar">{{ item.authorName.charAt(0) }}</div>
-              <span>{{ item.authorName }}</span>
+              <div class="author-meta">
+                <span class="author-name">{{ item.authorName }}</span>
+                <span class="author-role">Auteur du guide</span>
+              </div>
             </div>
-            <button type="button" class="read-more" (click)="toggleArticle(item.id)">
-              {{ expandedArticleId() === item.id ? 'Réduire' : 'Lire la suite' }}
-            </button>
           </div>
         </article>
       </div>
@@ -159,8 +202,7 @@ import { AuthService } from '../../core/auth.service';
       }
 
       .toggle-btn,
-      .btn-primary,
-      .read-more {
+      .btn-primary {
         border-radius: var(--radius-md);
         font-weight: 900;
         cursor: pointer;
@@ -262,87 +304,164 @@ import { AuthService } from '../../core/auth.service';
       }
 
       .article-card {
-        padding: 1.2rem;
+        padding: 0;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .article-card:hover {
+        border-color: rgba(0, 89, 163, 0.28);
+        box-shadow: 0 8px 24px rgba(15, 33, 55, 0.08);
+      }
+
+      .article-card.expanded {
+        border-color: rgba(0, 89, 163, 0.35);
+      }
+
+      .card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 1.1rem 1.2rem 0;
       }
 
       .article-category {
         width: fit-content;
-        padding: 0.25rem 0.55rem;
+        padding: 0.28rem 0.6rem;
         background: var(--brand-blue-soft);
         color: var(--brand-blue);
-        border-radius: var(--radius-sm);
-        font-size: 0.72rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 0.85rem;
+      }
+
+      .article-date {
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
       }
 
       .article-card h2 {
-        font-size: 1.12rem;
+        font-size: 1.14rem;
         line-height: 1.35;
-        margin-bottom: 0.7rem;
+        padding: 0.65rem 1.2rem 0;
       }
 
-      .article-card p {
+      .article-body {
+        padding: 0.55rem 1.2rem 0.85rem;
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      .content-wrap {
+        position: relative;
+      }
+
+      .article-content {
         color: var(--text-secondary);
-        line-height: 1.6;
-        flex: 1;
+        line-height: 1.65;
         white-space: pre-line;
+        margin: 0;
+        transition: max-height 0.35s ease;
       }
 
-      .article-card p.clamped {
+      .content-wrap.is-clamped .article-content {
         display: -webkit-box;
         -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        max-height: 6.6em;
+      }
+
+      .fade-overlay {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 3.2rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 88%);
+        pointer-events: none;
+      }
+
+      .read-more {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border: 0;
+        background: transparent;
+        color: var(--brand-blue);
+        padding: 0.15rem 0;
+        font-size: 0.88rem;
+        font-weight: 900;
+        cursor: pointer;
+        transition: color 0.15s ease, gap 0.15s ease;
+      }
+
+      .read-more:hover {
+        color: var(--brand-blue-dark);
+        gap: 0.55rem;
+      }
+
+      .read-more svg {
+        transition: transform 0.25s ease;
+      }
+
+      .read-more svg.rotated {
+        transform: rotate(180deg);
       }
 
       .article-footer {
-        margin-top: 1rem;
-        padding-top: 1rem;
+        margin-top: auto;
+        padding: 0.9rem 1.2rem;
         border-top: 1px solid var(--line);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.8rem;
+        background: var(--surface-soft);
       }
 
       .author {
         display: flex;
         align-items: center;
-        gap: 0.65rem;
+        gap: 0.7rem;
         min-width: 0;
       }
 
       .avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: var(--radius-sm);
-        background: var(--surface-soft);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #fff;
+        border: 1px solid var(--line);
         color: var(--brand-blue);
         display: grid;
         place-items: center;
         font-weight: 900;
+        flex-shrink: 0;
       }
 
-      .author span {
-        color: var(--text-secondary);
-        font-size: 0.86rem;
+      .author-meta {
+        display: grid;
+        gap: 0.1rem;
+        min-width: 0;
+      }
+
+      .author-name {
+        color: var(--text-primary);
+        font-size: 0.88rem;
         font-weight: 800;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      .read-more {
-        flex: 0 0 auto;
-        border: 1px solid var(--line);
-        background: var(--surface-soft);
-        color: var(--brand-blue);
-        padding: 0.48rem 0.7rem;
+      .author-role {
+        color: var(--text-muted);
+        font-size: 0.74rem;
+        font-weight: 700;
       }
 
       .empty-state {
@@ -408,6 +527,25 @@ export class KnowledgePage implements OnInit {
   onSearch(value: string): void {
     this.query.set(value);
     this.load();
+  }
+
+  needsExpand(content: string): boolean {
+    if (!content) {
+      return false;
+    }
+    const lines = content.split('\n').length;
+    return content.length > 220 || lines > 4;
+  }
+
+  formatDate(value: string): string {
+    if (!value) {
+      return '';
+    }
+    return new Date(value).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
   }
 
   toggleArticle(id: number): void {

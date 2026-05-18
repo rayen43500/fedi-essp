@@ -39,7 +39,23 @@ import { AuthService } from '../../core/auth.service';
 
             <div class="field">
               <label for="password">Mot de passe</label>
-              <input id="password" type="password" formControlName="password" placeholder="Au moins 6 caractères" autocomplete="new-password" />
+              <div class="password-wrap">
+                <input
+                  id="password"
+                  [type]="showPassword() ? 'text' : 'password'"
+                  formControlName="password"
+                  placeholder="Au moins 6 caractères"
+                  autocomplete="new-password"
+                />
+                <button
+                  type="button"
+                  class="toggle-pwd"
+                  (click)="showPassword.set(!showPassword())"
+                  [attr.aria-label]="showPassword() ? 'Masquer le mot de passe' : 'Voir le mot de passe'"
+                >
+                  {{ showPassword() ? 'Masquer mdp' : 'Voir mdp' }}
+                </button>
+              </div>
             </div>
 
             <button type="submit" [disabled]="loading() || form.invalid">
@@ -151,9 +167,40 @@ import { AuthService } from '../../core/auth.service';
       }
 
       input {
+        width: 100%;
         border: 1px solid var(--line);
         border-radius: var(--radius-md);
         padding: 0.78rem 0.9rem;
+      }
+
+      .password-wrap {
+        position: relative;
+        display: grid;
+      }
+
+      .password-wrap input {
+        padding-right: 6.5rem;
+      }
+
+      .toggle-pwd {
+        position: absolute;
+        right: 0.45rem;
+        top: 50%;
+        transform: translateY(-50%);
+        margin: 0;
+        min-height: auto;
+        border: 0;
+        background: var(--brand-blue-soft);
+        color: var(--brand-blue);
+        border-radius: var(--radius-sm);
+        padding: 0.38rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .toggle-pwd:hover {
+        background: #dceaf7;
       }
 
       input:focus {
@@ -220,6 +267,7 @@ export class RegisterPage {
   readonly form;
   readonly loading = signal(false);
   readonly error = signal('');
+  readonly showPassword = signal(false);
 
   constructor(
     private readonly fb: FormBuilder,

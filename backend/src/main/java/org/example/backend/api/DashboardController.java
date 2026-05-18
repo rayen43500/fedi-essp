@@ -22,4 +22,10 @@ public class DashboardController {
     public AuthDtos.DashboardStats stats() {
         return ticketService.dashboardStats();
     }
+
+    @GetMapping("/charts")
+    @PreAuthorize("hasAnyRole('AGENT','SUPERVISEUR','ADMIN')")
+    public AuthDtos.DashboardCharts charts() {
+        return ticketService.dashboardCharts();
+    }
 }

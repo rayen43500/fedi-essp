@@ -1,7 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import {
+  AssistantStatus,
   ChatbotReply,
+  ChatMessage,
+  DashboardCharts,
   DashboardStats,
   KnowledgeArticle,
   NotificationView,
@@ -87,6 +90,10 @@ export class ApiService {
     return this.http.get<DashboardStats>(`${this.api}/dashboard/stats`);
   }
 
+  dashboardCharts() {
+    return this.http.get<DashboardCharts>(`${this.api}/dashboard/charts`);
+  }
+
   users() {
     return this.http.get<UserSummary[]>(`${this.api}/auth/users`);
   }
@@ -114,6 +121,14 @@ export class ApiService {
 
   chatbot(question: string) {
     return this.http.get<ChatbotReply>(`${this.api}/chatbot?q=${encodeURIComponent(question)}`);
+  }
+
+  assistantStatus() {
+    return this.http.get<AssistantStatus>(`${this.api}/chatbot/status`);
+  }
+
+  chatbotChat(message: string, history: ChatMessage[] = []) {
+    return this.http.post<ChatbotReply>(`${this.api}/chatbot/chat`, { message, history });
   }
 
   notifications() {

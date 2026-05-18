@@ -4,7 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
-import { ChatbotReply, ChatMessage, KnowledgeArticle, TicketDraft } from '../../core/models';
+import {
+  ChatbotReply,
+  ChatMessage,
+  KnowledgeArticle,
+  TicketCategory,
+  TicketDraft,
+  TicketPriority,
+  TicketType
+} from '../../core/models';
 
 interface UiMessage {
   role: 'user' | 'assistant';
@@ -47,19 +55,57 @@ interface UiMessage {
 
         <div class="ticket-draft" *ngIf="proposedTicket() as draft">
           <p class="eyebrow">Ticket proposé par l'IA</p>
-          <h3>{{ draft.title }}</h3>
-          <p class="draft-desc">{{ draft.description }}</p>
-          <dl class="draft-meta">
-            <div><dt>Type</dt><dd>{{ draft.type }}</dd></div>
-            <div><dt>Catégorie</dt><dd>{{ draft.category }}</dd></div>
-            <div><dt>Priorité</dt><dd>{{ draft.priority }}</dd></div>
+
+          <form class="draft-form" *ngIf="editingDraft() && editDraft as form" (ngSubmit)="applyDraftEdit()">
+            <div class="field">
+              <label for="draft-title">Titre</label>
+              <input id="draft-title" name="draftTitle" [(ngModel)]="form.title" required />
+            </div>
+            <div class="field">
+              <label for="draft-desc">Description</label>
+              <textarea id="draft-desc" name="draftDesc" rows="4" [(ngModel)]="form.description" required></textarea>
+            </div>
+            <div class="draft-form-row">
+              <div class="field">
+                <label for="draft-type">Type</label>
+                <select id="draft-type" name="draftType" [(ngModel)]="form.type">
+                  <option *ngFor="let t of types" [value]="t">{{ typeLabel(t) }}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="draft-cat">Catégorie</label>
+                <select id="draft-cat" name="draftCat" [(ngModel)]="form.category">
+                  <option *ngFor="let c of categories" [value]="c">{{ categoryLabel(c) }}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="draft-prio">Priorité</label>
+                <select id="draft-prio" name="draftPrio" [(ngModel)]="form.priority">
+                  <option *ngFor="let p of priorities" [value]="p">{{ priorityLabel(p) }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="draft-actions">
+              <button type="submit" class="btn-confirm">Enregistrer le brouillon</button>
+              <button type="button" class="btn-cancel" (click)="cancelEditDraft()">Annuler</button>
+            </div>
+          </form>
+
+          <ng-container *ngIf="!editingDraft()">
+            <h3>{{ draft.title }}</h3>
+            <p class="draft-desc">{{ draft.description }}</p>
+            <dl class="draft-meta">
+            <div><dt>Type</dt><dd>{{ typeLabel(draft.type) }}</dd></div>
+            <div><dt>Catégorie</dt><dd>{{ categoryLabel(draft.category) }}</dd></div>
+            <div><dt>Priorité</dt><dd>{{ priorityLabel(draft.priority) }}</dd></div>
           </dl>
-          <div class="draft-actions" *ngIf="auth.hasAnyRole(['CLIENT'])">
+          <div class="draft-actions" *ngIf="auth.hasAnyRole(['CLIENT']) && !editingDraft()">
             <button type="button" class="btn-confirm" (click)="confirmTicket()" [disabled]="loading()">
               Confirmer et envoyer
             </button>
-            <button type="button" class="btn-cancel" (click)="cancelDraft()">Modifier</button>
+            <button type="button" class="btn-cancel" (click)="startEditDraft()">Modifier le brouillon</button>
           </div>
+          </ng-container>
         </div>
 
         <div class="ticket-banner" *ngIf="lastTicketId() as ticketId">
@@ -473,6 +519,37 @@ interface UiMessage {
         cursor: pointer;
       }
 
+      .draft-form {
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .draft-form-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+
+      .draft-form .field label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: var(--text-secondary);
+        margin-bottom: 0.25rem;
+      }
+
+      .draft-form input,
+      .draft-form textarea,
+      .draft-form select {
+        width: 100%;
+      }
+
+      @media (max-width: 700px) {
+        .draft-form-row {
+          grid-template-columns: 1fr;
+        }
+      }
+
       .btn-cancel {
         border: 1px solid var(--line);
         background: #fff;
@@ -549,9 +626,67 @@ export class ChatbotPage implements OnInit {
     });
   }
 
-  cancelDraft(): void {
-    this.proposedTicket.set(null);
-    this.question = 'Je souhaite modifier le ticket : ';
+  readonly editingDraft = signal(false);
+  editDraft: TicketDraft | null = null;
+
+  readonly types: TicketType[] = ['INCIDENT', 'DEMANDE'];
+  readonly categories: TicketCategory[] = ['MATERIEL', 'LOGICIEL', 'RESEAU', 'ACCES', 'AUTRE'];
+  readonly priorities: TicketPriority[] = ['FAIBLE', 'MOYENNE', 'ELEVEE', 'CRITIQUE'];
+
+  startEditDraft(): void {
+    const draft = this.proposedTicket();
+    if (!draft) {
+      return;
+    }
+    this.editDraft = { ...draft };
+    this.editingDraft.set(true);
+  }
+
+  applyDraftEdit(): void {
+    if (!this.editDraft?.title?.trim() || !this.editDraft.description?.trim()) {
+      return;
+    }
+    this.proposedTicket.set({
+      ...this.editDraft,
+      title: this.editDraft.title.trim(),
+      description: this.editDraft.description.trim()
+    });
+    this.editingDraft.set(false);
+    this.editDraft = null;
+    this.messages.update((list) => [
+      ...list,
+      { role: 'assistant', content: 'Brouillon mis à jour. Vérifiez puis confirmez l\'envoi.' }
+    ]);
+  }
+
+  cancelEditDraft(): void {
+    this.editingDraft.set(false);
+    this.editDraft = null;
+  }
+
+  typeLabel(type: TicketType): string {
+    return type === 'DEMANDE' ? 'Demande' : 'Incident';
+  }
+
+  categoryLabel(category: TicketCategory): string {
+    const labels: Record<TicketCategory, string> = {
+      MATERIEL: 'Matériel',
+      LOGICIEL: 'Logiciel',
+      RESEAU: 'Réseau',
+      ACCES: 'Accès',
+      AUTRE: 'Autre'
+    };
+    return labels[category];
+  }
+
+  priorityLabel(priority: TicketPriority): string {
+    const labels: Record<TicketPriority, string> = {
+      FAIBLE: 'Faible',
+      MOYENNE: 'Moyenne',
+      ELEVEE: 'Élevée',
+      CRITIQUE: 'Critique'
+    };
+    return labels[priority];
   }
 
   send(): void {
@@ -570,7 +705,8 @@ export class ChatbotPage implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    this.api.chatbotChat(value, history).subscribe({
+    const draft = this.proposedTicket();
+    this.api.chatbotChat(value, history, { ticketDraft: draft ?? undefined }).subscribe({
       next: (res) => this.handleReply(res),
       error: () => {
         this.loading.set(false);
@@ -583,10 +719,13 @@ export class ChatbotPage implements OnInit {
     this.messages.update((list) => [...list, { role: 'assistant', content: res.answer }]);
     this.suggestions.set(res.suggestions ?? []);
     this.assistantOn.set(res.assistantEnabled ?? false);
-    this.proposedTicket.set(res.awaitingConfirmation && res.proposedTicket ? res.proposedTicket : null);
     if (res.ticketCreated && res.createdTicket) {
       this.lastTicketId.set(res.createdTicket.id);
       this.proposedTicket.set(null);
+      this.editingDraft.set(false);
+      this.editDraft = null;
+    } else if (res.proposedTicket) {
+      this.proposedTicket.set(res.proposedTicket);
     }
     this.loading.set(false);
   }

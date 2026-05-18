@@ -17,8 +17,8 @@ import { NotificationView } from '../core/models';
         <div class="brand">
           <img src="/image.png" alt="Topnet" class="logo" />
           <div class="brand-text">
-            <strong>Support Desk</strong>
-            <span>Topnet</span>
+            <strong>Topnet</strong>
+            <span>Support client</span>
           </div>
         </div>
 
@@ -63,8 +63,8 @@ import { NotificationView } from '../core/models';
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
             <div class="page-kicker">
-              <span>Espace sécurisé</span>
-              <strong>Support Topnet</strong>
+              <span>Plateforme</span>
+              <strong>Topnet Support</strong>
             </div>
           </div>
 

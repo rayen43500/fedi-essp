@@ -44,7 +44,20 @@ public final class AuthDtos {
             String email,
             Set<Role> roles,
             boolean active,
-            Instant createdAt
+            Instant createdAt,
+            String avatarUrl
+    ) {
+    }
+
+    public record ProfileUpdateRequest(
+            @NotBlank @Size(max = 120) String fullName,
+            @Email @NotBlank String email
+    ) {
+    }
+
+    public record PasswordChangeRequest(
+            @NotBlank String currentPassword,
+            @NotBlank @Size(min = 6, max = 120) String newPassword
     ) {
     }
 
@@ -155,9 +168,20 @@ public final class AuthDtos {
     ) {
     }
 
+    public record TicketDraftDto(
+            String title,
+            String description,
+            TicketType type,
+            TicketCategory category,
+            TicketPriority priority
+    ) {
+    }
+
     public record ChatRequest(
             @NotBlank String message,
-            List<ChatMessage> history
+            List<ChatMessage> history,
+            Boolean confirmTicket,
+            TicketDraftDto ticketDraft
     ) {
     }
 
@@ -166,7 +190,9 @@ public final class AuthDtos {
             List<KnowledgeView> suggestions,
             boolean assistantEnabled,
             boolean ticketCreated,
-            TicketView createdTicket
+            TicketView createdTicket,
+            TicketDraftDto proposedTicket,
+            boolean awaitingConfirmation
     ) {
     }
 

@@ -7,6 +7,7 @@ export interface UserSummary {
   roles: Role[];
   active: boolean;
   createdAt: string;
+  avatarUrl?: string;
 }
 
 export interface AuthResponse {
@@ -74,12 +75,22 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface TicketDraft {
+  title: string;
+  description: string;
+  type: TicketType;
+  category: TicketCategory;
+  priority: TicketPriority;
+}
+
 export interface ChatbotReply {
   answer: string;
   suggestions: KnowledgeArticle[];
   assistantEnabled: boolean;
   ticketCreated: boolean;
   createdTicket?: Ticket;
+  proposedTicket?: TicketDraft;
+  awaitingConfirmation: boolean;
 }
 
 export interface AssistantStatus {

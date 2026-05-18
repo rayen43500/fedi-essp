@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -50,9 +51,11 @@ public class TicketController {
                                           @RequestParam(required = false) Boolean assignedToMe,
                                           @RequestParam(required = false) Boolean mine,
                                           @RequestParam(required = false) Boolean overdue,
-                                          @RequestParam(required = false) Boolean includeArchived) {
+                                          @RequestParam(required = false) Boolean includeArchived,
+                                          @RequestParam(required = false) Instant createdFrom,
+                                          @RequestParam(required = false) Instant createdTo) {
         UserAccount currentUser = currentUserService.requireCurrentUser();
-        return ticketService.listTickets(currentUser, q, status, priority, category, type, agentId, unassigned, assignedToMe, mine, overdue, includeArchived);
+        return ticketService.listTickets(currentUser, q, status, priority, category, type, agentId, unassigned, assignedToMe, mine, overdue, includeArchived, createdFrom, createdTo);
     }
 
     @GetMapping("/{id}")

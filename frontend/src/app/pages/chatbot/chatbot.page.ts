@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
-import { ChatMessage, KnowledgeArticle } from '../../core/models';
+import { ChatbotReply, ChatMessage, KnowledgeArticle, TicketDraft } from '../../core/models';
 
 interface UiMessage {
   role: 'user' | 'assistant';
@@ -42,6 +42,23 @@ interface UiMessage {
               <span>{{ msg.role === 'user' ? 'Vous' : 'Assistant' }}</span>
               <p>{{ msg.content }}</p>
             </div>
+          </div>
+        </div>
+
+        <div class="ticket-draft" *ngIf="proposedTicket() as draft">
+          <p class="eyebrow">Ticket proposé par l'IA</p>
+          <h3>{{ draft.title }}</h3>
+          <p class="draft-desc">{{ draft.description }}</p>
+          <dl class="draft-meta">
+            <div><dt>Type</dt><dd>{{ draft.type }}</dd></div>
+            <div><dt>Catégorie</dt><dd>{{ draft.category }}</dd></div>
+            <div><dt>Priorité</dt><dd>{{ draft.priority }}</dd></div>
+          </dl>
+          <div class="draft-actions" *ngIf="auth.hasAnyRole(['CLIENT'])">
+            <button type="button" class="btn-confirm" (click)="confirmTicket()" [disabled]="loading()">
+              Confirmer et envoyer
+            </button>
+            <button type="button" class="btn-cancel" (click)="cancelDraft()">Modifier</button>
           </div>
         </div>
 
@@ -93,11 +110,10 @@ interface UiMessage {
           </div>
         </div>
 
-        <div class="client-actions" *ngIf="auth.hasAnyRole(['CLIENT']) && !messages().length">
-          <button type="button" class="quick-btn" (click)="promptTicketCreation()">
-            Créer un ticket avec l'IA
-          </button>
-          <p>Décrivez votre problème dans le champ ci-dessous, ou utilisez ce raccourci.</p>
+        <div class="quick-intents" *ngIf="auth.hasAnyRole(['CLIENT']) && !messages().length">
+          <button type="button" class="chip" (click)="useIntent('Mon VPN ne fonctionne plus')">VPN</button>
+          <button type="button" class="chip" (click)="useIntent('Problème de messagerie')">Email</button>
+          <button type="button" class="chip" (click)="promptTicketCreation()">Créer un ticket</button>
         </div>
 
         <div class="empty-chat" *ngIf="!messages().length && !loading()">
@@ -380,30 +396,91 @@ interface UiMessage {
         transform: rotate(180deg);
       }
 
-      .client-actions {
-        display: grid;
+      .quick-intents {
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
-        padding: 0.2rem 0;
       }
 
-      .client-actions p {
-        color: var(--text-secondary);
-        font-size: 0.88rem;
-      }
-
-      .quick-btn {
-        width: fit-content;
-        border: 0;
-        border-radius: var(--radius-md);
-        background: var(--brand-orange);
-        color: #fff;
-        font-weight: 900;
-        padding: 0.6rem 0.95rem;
+      .chip {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--brand-blue);
+        border-radius: 999px;
+        padding: 0.45rem 0.8rem;
+        font-weight: 800;
+        font-size: 0.82rem;
         cursor: pointer;
       }
 
-      .quick-btn:hover {
-        filter: brightness(1.05);
+      .chip:hover {
+        background: var(--brand-blue-soft);
+      }
+
+      .ticket-draft {
+        background: linear-gradient(135deg, #fff 0%, var(--brand-blue-soft) 120%);
+        border: 1px solid rgba(0, 89, 163, 0.22);
+        border-radius: var(--radius-md);
+        padding: 1.1rem;
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      .ticket-draft h3 {
+        font-size: 1.05rem;
+        word-break: break-word;
+      }
+
+      .draft-desc {
+        color: var(--text-secondary);
+        line-height: 1.6;
+        white-space: pre-line;
+        word-break: break-word;
+        max-height: 160px;
+        overflow-y: auto;
+      }
+
+      .draft-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .draft-meta div {
+        font-size: 0.82rem;
+      }
+
+      .draft-meta dt {
+        color: var(--text-muted);
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+      }
+
+      .draft-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .btn-confirm {
+        border: 0;
+        background: var(--brand-blue);
+        color: #fff;
+        border-radius: var(--radius-md);
+        padding: 0.6rem 1rem;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .btn-cancel {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--text-secondary);
+        border-radius: var(--radius-md);
+        padding: 0.6rem 1rem;
+        font-weight: 900;
+        cursor: pointer;
       }
 
       .empty-chat {
@@ -434,6 +511,7 @@ export class ChatbotPage implements OnInit {
   readonly error = signal('');
   readonly assistantOn = signal(false);
   readonly lastTicketId = signal<number | null>(null);
+  readonly proposedTicket = signal<TicketDraft | null>(null);
   readonly expandedSuggestionId = signal<number | null>(null);
 
   constructor(
@@ -452,6 +530,30 @@ export class ChatbotPage implements OnInit {
     this.question = 'Je souhaite créer un ticket. Mon problème : ';
   }
 
+  useIntent(text: string): void {
+    this.question = text;
+  }
+
+  confirmTicket(): void {
+    const draft = this.proposedTicket();
+    if (!draft || this.loading()) {
+      return;
+    }
+    this.loading.set(true);
+    this.api.chatbotChat('Confirmer la création du ticket', [], { confirmTicket: true, ticketDraft: draft }).subscribe({
+      next: (res) => this.handleReply(res),
+      error: () => {
+        this.loading.set(false);
+        this.error.set('Impossible de créer le ticket.');
+      }
+    });
+  }
+
+  cancelDraft(): void {
+    this.proposedTicket.set(null);
+    this.question = 'Je souhaite modifier le ticket : ';
+  }
+
   send(): void {
     const value = this.question.trim();
     if (!value || this.loading()) {
@@ -468,26 +570,25 @@ export class ChatbotPage implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    const wantsTicket = this.auth.hasAnyRole(['CLIENT']) && this.isTicketIntent(value);
-    const request$ = wantsTicket
-      ? this.api.chatbotCreateTicket(value)
-      : this.api.chatbotChat(value, history);
-
-    request$.subscribe({
-      next: (res) => {
-        this.messages.update((list) => [...list, { role: 'assistant', content: res.answer }]);
-        this.suggestions.set(res.suggestions ?? []);
-        this.assistantOn.set(res.assistantEnabled ?? false);
-        if (res.ticketCreated && res.createdTicket) {
-          this.lastTicketId.set(res.createdTicket.id);
-        }
-        this.loading.set(false);
-      },
+    this.api.chatbotChat(value, history).subscribe({
+      next: (res) => this.handleReply(res),
       error: () => {
         this.loading.set(false);
         this.error.set("L'assistant n'a pas pu répondre pour le moment.");
       }
     });
+  }
+
+  private handleReply(res: ChatbotReply): void {
+    this.messages.update((list) => [...list, { role: 'assistant', content: res.answer }]);
+    this.suggestions.set(res.suggestions ?? []);
+    this.assistantOn.set(res.assistantEnabled ?? false);
+    this.proposedTicket.set(res.awaitingConfirmation && res.proposedTicket ? res.proposedTicket : null);
+    if (res.ticketCreated && res.createdTicket) {
+      this.lastTicketId.set(res.createdTicket.id);
+      this.proposedTicket.set(null);
+    }
+    this.loading.set(false);
   }
 
   isSuggestionLong(content: string): boolean {

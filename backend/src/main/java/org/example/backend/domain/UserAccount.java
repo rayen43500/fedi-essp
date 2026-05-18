@@ -46,6 +46,9 @@ public class UserAccount {
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(length = 500)
+    private String avatarUrl;
+
     public Long getId() {
         return id;
     }
@@ -92,5 +95,13 @@ public class UserAccount {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 }

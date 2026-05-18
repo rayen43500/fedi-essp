@@ -8,6 +8,7 @@ import { TicketsPage } from './pages/tickets/tickets.page';
 import { KnowledgePage } from './pages/knowledge/knowledge.page';
 import { ChatbotPage } from './pages/chatbot/chatbot.page';
 import { UsersPage } from './pages/users/users.page';
+import { ProfilePage } from './pages/profile/profile.page';
 import { ShellComponent } from './shared/shell.component';
 
 export const routes: Routes = [
@@ -23,6 +24,7 @@ export const routes: Routes = [
 			{ path: 'tickets', component: TicketsPage },
 			{ path: 'knowledge', component: KnowledgePage },
 			{ path: 'chatbot', component: ChatbotPage },
+			{ path: 'profile', component: ProfilePage },
 			{
 				path: 'users',
 				component: UsersPage,

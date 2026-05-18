@@ -44,7 +44,7 @@ public class ChatbotService {
 
     @Transactional(readOnly = true)
     public AuthDtos.ChatbotReply ask(String question) {
-        return chat(new AuthDtos.ChatRequest(question, List.of()));
+        return chat(new AuthDtos.ChatRequest(question, List.of(), false, null));
     }
 
     @Transactional
@@ -54,12 +54,24 @@ public class ChatbotService {
             throw new IllegalArgumentException("Message vide");
         }
 
+        UserAccount currentUser = currentUserService.requireCurrentUser();
+        boolean canCreateTicket = currentUser.getRoles().contains(Role.CLIENT);
+
+        if (Boolean.TRUE.equals(request.confirmTicket()) && request.ticketDraft() != null && canCreateTicket) {
+            AuthDtos.TicketView created = createTicketFromDraft(request.ticketDraft(), currentUser);
+            return reply(
+                    "Parfait — votre ticket #" + created.id() + " est cree. Un agent va le prendre en charge rapidement.",
+                    List.of(),
+                    geminiService.isConfigured(),
+                    true,
+                    created,
+                    null,
+                    false);
+        }
+
         List<AuthDtos.KnowledgeView> suggestions = knowledgeService.search(question).stream()
                 .limit(3)
                 .toList();
-
-        UserAccount currentUser = currentUserService.requireCurrentUser();
-        boolean canCreateTicket = currentUser.getRoles().contains(Role.CLIENT);
 
         if (!geminiService.isConfigured()) {
             return fallbackReply(question, suggestions, canCreateTicket, currentUser);
@@ -76,31 +88,40 @@ public class ChatbotService {
                     "Je n'ai pas pu formuler une reponse claire. Pouvez-vous preciser votre probleme ?");
             boolean wantsTicket = parsed.path("createTicket").asBoolean(false);
 
-            AuthDtos.TicketView createdTicket = null;
             if (wantsTicket && canCreateTicket) {
-                createdTicket = createTicketFromAi(parsed, currentUser);
-                if (createdTicket != null) {
-                    answer = answer + "\n\nJ'ai cree le ticket #" + createdTicket.id()
-                            + " pour vous. L'equipe support va le traiter.";
+                AuthDtos.TicketDraftDto draft = buildDraftFromAi(parsed, question);
+                if (isConfirmationMessage(question)) {
+                    AuthDtos.TicketView created = createTicketFromDraft(draft, currentUser);
+                    return reply(
+                            answer + "\n\nTicket #" + created.id() + " confirme et envoye au support.",
+                            suggestions,
+                            true,
+                            true,
+                            created,
+                            null,
+                            false);
                 }
+                return reply(
+                        answer + "\n\nVoici le ticket propose. Cliquez sur « Confirmer » pour l'envoyer au support.",
+                        suggestions,
+                        true,
+                        false,
+                        null,
+                        draft,
+                        true);
             }
 
-            return new AuthDtos.ChatbotReply(
-                    answer,
-                    suggestions,
-                    true,
-                    createdTicket != null,
-                    createdTicket
-            );
+            return reply(answer, suggestions, true, false, null, null, false);
         } catch (Exception ex) {
             AuthDtos.ChatbotReply fallback = fallbackReply(question, suggestions, canCreateTicket, currentUser);
-            return new AuthDtos.ChatbotReply(
+            return reply(
                     fallback.answer() + "\n\n(Assistant IA temporairement indisponible — reponse de secours.)",
                     fallback.suggestions(),
                     false,
-                    false,
-                    null
-            );
+                    fallback.ticketCreated(),
+                    fallback.createdTicket(),
+                    fallback.proposedTicket(),
+                    fallback.awaitingConfirmation());
         }
     }
 
@@ -114,9 +135,16 @@ public class ChatbotService {
         if (message.isBlank()) {
             throw new IllegalArgumentException("Message vide");
         }
-        AuthDtos.TicketView ticket = buildTicketFromUserMessage(message, currentUser);
-        String answer = "J'ai cree le ticket #" + ticket.id() + " a partir de votre demande. L'equipe support va le traiter.";
-        return new AuthDtos.ChatbotReply(answer, List.of(), geminiService.isConfigured(), true, ticket);
+        AuthDtos.TicketDraftDto draft = buildDraftFromMessage(message);
+        AuthDtos.TicketView ticket = createTicketFromDraft(draft, currentUser);
+        return reply(
+                "Ticket #" + ticket.id() + " prepare et envoye. Suivez son avancement dans vos tickets.",
+                List.of(),
+                geminiService.isConfigured(),
+                true,
+                ticket,
+                null,
+                false);
     }
 
     private AuthDtos.ChatbotReply fallbackReply(String question,
@@ -124,24 +152,93 @@ public class ChatbotService {
                                                   boolean canCreateTicket,
                                                   UserAccount currentUser) {
         if (canCreateTicket && wantsTicketCreation(question)) {
-            AuthDtos.TicketView ticket = buildTicketFromUserMessage(question, currentUser);
-            String answer = "J'ai cree le ticket #" + ticket.id() + " pour vous. Un agent va prendre en charge votre demande.";
-            if (!suggestions.isEmpty()) {
-                answer += " Consultez aussi les articles proposes ci-dessous.";
+            AuthDtos.TicketDraftDto draft = buildDraftFromMessage(question);
+            if (isConfirmationMessage(question)) {
+                AuthDtos.TicketView ticket = createTicketFromDraft(draft, currentUser);
+                String answer = "Ticket #" + ticket.id() + " cree pour vous. Un agent va le traiter.";
+                if (!suggestions.isEmpty()) {
+                    answer += " Consultez aussi les articles proposes.";
+                }
+                return reply(answer, suggestions, false, true, ticket, null, false);
             }
-            return new AuthDtos.ChatbotReply(answer, suggestions, false, true, ticket);
+            return reply(
+                    "J'ai prepare un ticket a partir de votre message. Confirmez pour l'envoyer au support.",
+                    suggestions,
+                    false,
+                    false,
+                    null,
+                    draft,
+                    true);
         }
 
         String answer;
         if (!suggestions.isEmpty()) {
-            answer = "J'ai trouve des articles qui peuvent vous aider avant de creer un ticket.";
+            answer = "J'ai trouve des articles utiles. Si besoin, dites « creer un ticket » avec les details.";
         } else if (canCreateTicket) {
-            answer = "Je n'ai pas trouve de solution immediate. Dites « creer un ticket » avec les details "
-                    + "ou utilisez le bouton dedie pour que je le fasse pour vous.";
+            answer = "Decrivez votre probleme ou utilisez « Creer un ticket avec l'IA » pour un envoi guide.";
         } else {
             answer = "Je n'ai pas trouve de solution immediate dans la base de connaissances.";
         }
-        return new AuthDtos.ChatbotReply(answer, suggestions, geminiService.isConfigured(), false, null);
+        return reply(answer, suggestions, geminiService.isConfigured(), false, null, null, false);
+    }
+
+    private AuthDtos.ChatbotReply reply(String answer,
+                                        List<AuthDtos.KnowledgeView> suggestions,
+                                        boolean enabled,
+                                        boolean created,
+                                        AuthDtos.TicketView ticket,
+                                        AuthDtos.TicketDraftDto draft,
+                                        boolean awaiting) {
+        return new AuthDtos.ChatbotReply(answer, suggestions, enabled, created, ticket, draft, awaiting);
+    }
+
+    private AuthDtos.TicketDraftDto buildDraftFromAi(JsonNode parsed, String fallbackMessage) {
+        String title = parsed.path("ticketTitle").asText("").trim();
+        String description = parsed.path("ticketDescription").asText("").trim();
+        if (title.isBlank()) {
+            title = fallbackMessage.length() > 100 ? fallbackMessage.substring(0, 97) + "..." : fallbackMessage;
+        }
+        if (description.isBlank()) {
+            description = fallbackMessage;
+        }
+        TicketType type = parseEnum(parsed.path("ticketType").asText("INCIDENT"), TicketType.class, TicketType.INCIDENT);
+        TicketCategory category = parseEnum(
+                parsed.path("ticketCategory").asText("AUTRE"), TicketCategory.class, TicketCategory.AUTRE);
+        TicketPriority priority = parseEnum(
+                parsed.path("ticketPriority").asText("MOYENNE"), TicketPriority.class, TicketPriority.MOYENNE);
+        return new AuthDtos.TicketDraftDto(
+                title.substring(0, Math.min(title.length(), 180)),
+                description.substring(0, Math.min(description.length(), 2500)),
+                type,
+                category,
+                priority);
+    }
+
+    private AuthDtos.TicketDraftDto buildDraftFromMessage(String message) {
+        String title = message.length() > 100 ? message.substring(0, 97) + "..." : message;
+        return new AuthDtos.TicketDraftDto(title, message, TicketType.INCIDENT, TicketCategory.AUTRE, TicketPriority.MOYENNE);
+    }
+
+    private AuthDtos.TicketView createTicketFromDraft(AuthDtos.TicketDraftDto draft, UserAccount client) {
+        AuthDtos.TicketCreateRequest request = new AuthDtos.TicketCreateRequest(
+                draft.title(),
+                draft.description(),
+                draft.type(),
+                draft.category(),
+                draft.priority(),
+                null);
+        return ticketService.createTicket(request, client);
+    }
+
+    private boolean isConfirmationMessage(String message) {
+        String lower = message.toLowerCase(Locale.ROOT);
+        return lower.equals("oui")
+                || lower.equals("ok")
+                || lower.contains("confirmer")
+                || lower.contains("valider")
+                || lower.contains("creer le ticket")
+                || lower.contains("créer le ticket")
+                || lower.contains("envoyer");
     }
 
     private boolean wantsTicketCreation(String message) {
@@ -152,21 +249,8 @@ public class ChatbotService {
                 || lower.contains("passer un ticket")
                 || lower.contains("nouveau ticket")
                 || lower.contains("generer un ticket")
-                || lower.contains("générer un ticket");
-    }
-
-    private AuthDtos.TicketView buildTicketFromUserMessage(String message, UserAccount client) {
-        String title = message.length() > 120 ? message.substring(0, 117) + "..." : message;
-        String description = message.length() > 2500 ? message.substring(0, 2500) : message;
-        AuthDtos.TicketCreateRequest request = new AuthDtos.TicketCreateRequest(
-                title,
-                description,
-                TicketType.INCIDENT,
-                TicketCategory.AUTRE,
-                TicketPriority.MOYENNE,
-                null
-        );
-        return ticketService.createTicket(request, client);
+                || lower.contains("générer un ticket")
+                || isConfirmationMessage(message);
     }
 
     private String buildKnowledgeContext(List<AuthDtos.KnowledgeView> suggestions) {
@@ -181,26 +265,26 @@ public class ChatbotService {
     private String buildSystemPrompt(String knowledgeContext, boolean canCreateTicket) {
         String ticketRules = canCreateTicket
                 ? """
-                Si le client confirme vouloir ouvrir un ticket, ou si le probleme necessite une intervention humaine,
-                renseignez createTicket=true avec ticketTitle, ticketDescription, ticketType (INCIDENT ou DEMANDE),
+                Analyse le probleme du client. Si un ticket est necessaire, renseignez createTicket=true
+                avec ticketTitle, ticketDescription, ticketType (INCIDENT ou DEMANDE),
                 ticketCategory (MATERIEL, LOGICIEL, RESEAU, ACCES, AUTRE) et ticketPriority (FAIBLE, MOYENNE, ELEVEE, CRITIQUE).
+                Le client devra confirmer avant envoi : ne dites pas que le ticket est deja cree.
                 Sinon createTicket=false.
                 """
                 : "L'utilisateur n'est pas client: createTicket doit toujours etre false.";
 
         return """
-                Tu es l'assistant support Topnet pour une plateforme de tickets IT.
-                Reponds en francais, de facon claire et professionnelle.
-                Utilise la base de connaissances fournie avant de proposer un ticket.
+                Tu es l'assistant support Topnet (plateforme IT). Reponds en francais, clair et professionnel.
+                Utilise la base de connaissances avant de proposer un ticket.
 
-                Articles disponibles:
+                Articles:
                 %s
 
                 %s
 
-                Reponds UNIQUEMENT en JSON avec cette structure exacte:
+                JSON uniquement:
                 {
-                  "answer": "texte de reponse pour l'utilisateur",
+                  "answer": "reponse pour l'utilisateur",
                   "createTicket": false,
                   "ticketTitle": "",
                   "ticketDescription": "",
@@ -224,30 +308,6 @@ public class ChatbotService {
             turns.add(new GeminiService.ChatTurn(role, message.content().trim()));
         }
         return turns;
-    }
-
-    private AuthDtos.TicketView createTicketFromAi(JsonNode parsed, UserAccount client) {
-        String title = parsed.path("ticketTitle").asText("").trim();
-        String description = parsed.path("ticketDescription").asText("").trim();
-        if (title.isBlank() || description.isBlank()) {
-            return null;
-        }
-
-        TicketType type = parseEnum(parsed.path("ticketType").asText("INCIDENT"), TicketType.class, TicketType.INCIDENT);
-        TicketCategory category = parseEnum(
-                parsed.path("ticketCategory").asText("AUTRE"), TicketCategory.class, TicketCategory.AUTRE);
-        TicketPriority priority = parseEnum(
-                parsed.path("ticketPriority").asText("MOYENNE"), TicketPriority.class, TicketPriority.MOYENNE);
-
-        AuthDtos.TicketCreateRequest request = new AuthDtos.TicketCreateRequest(
-                title.substring(0, Math.min(title.length(), 180)),
-                description.substring(0, Math.min(description.length(), 2500)),
-                type,
-                category,
-                priority,
-                null
-        );
-        return ticketService.createTicket(request, client);
     }
 
     private <E extends Enum<E>> E parseEnum(String raw, Class<E> type, E fallback) {

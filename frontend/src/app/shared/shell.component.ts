@@ -74,14 +74,19 @@ import { NotificationView } from '../core/models';
               <span class="badge" *ngIf="notifications().length">{{ notifications().length }}</span>
             </button>
 
-            <div class="user-info">
-              <div class="avatar">{{ userInitial() }}</div>
-              <div>
-                <span class="space-tag">{{ spaceLabel() }}</span>
-                <strong>{{ auth.currentUser()?.fullName }}</strong>
-                <span>{{ auth.currentUser()?.email }}</span>
+            <a class="user-info" routerLink="/app/profile" (click)="closeMenu()">
+              <div class="avatar">
+                <img *ngIf="auth.currentUser()?.avatarUrl; else avatarInitial" [src]="avatarUrl()" alt="" />
+                <ng-template #avatarInitial>
+                  <span>{{ userInitial() }}</span>
+                </ng-template>
               </div>
-            </div>
+              <div class="user-text">
+                <span class="space-tag">{{ spaceLabel() }}</span>
+                <strong class="user-name">{{ auth.currentUser()?.fullName }}</strong>
+                <span class="user-email">{{ auth.currentUser()?.email }}</span>
+              </div>
+            </a>
           </div>
         </header>
 
@@ -264,7 +269,41 @@ import { NotificationView } from '../core/models';
       .user-info {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 0.85rem;
+        text-decoration: none;
+        color: inherit;
+        min-width: 0;
+        max-width: min(320px, 42vw);
+      }
+
+      .user-info:hover {
+        opacity: 0.92;
+      }
+
+      .user-text {
+        display: grid;
+        gap: 0.12rem;
+        min-width: 0;
+      }
+
+      .user-name {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
+      }
+
+      .user-email {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 200px;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
       }
 
       .menu-btn,
@@ -337,14 +376,24 @@ import { NotificationView } from '../core/models';
       }
 
       .avatar {
-        width: 40px;
-        height: 40px;
+        width: 42px;
+        height: 42px;
+        flex-shrink: 0;
         background: var(--brand-blue-soft);
         color: var(--brand-blue);
-        border-radius: var(--radius-md);
+        border-radius: 50%;
+        overflow: hidden;
         display: grid;
         place-items: center;
         font-weight: 900;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1px var(--line);
+      }
+
+      .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
       }
 
       .notif-panel {
@@ -492,8 +541,12 @@ import { NotificationView } from '../core/models';
           display: none;
         }
 
-        .user-info div:last-child {
+        .user-email {
           display: none;
+        }
+
+        .user-info {
+          max-width: none;
         }
 
         .page-content {
@@ -516,6 +569,10 @@ export class ShellComponent implements OnInit {
 
   userInitial(): string {
     return this.auth.currentUser()?.fullName?.trim().charAt(0).toUpperCase() || 'U';
+  }
+
+  avatarUrl(): string {
+    return this.auth.mediaUrl(this.auth.currentUser()?.avatarUrl);
   }
 
   spaceLabel(): string {

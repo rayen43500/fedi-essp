@@ -4,6 +4,8 @@ import {
   AssistantStatus,
   ChatbotReply,
   ChatMessage,
+  TicketDraft,
+  UserSummary,
   DashboardCharts,
   DashboardStats,
   KnowledgeArticle,
@@ -13,8 +15,7 @@ import {
   TicketCategory,
   TicketPriority,
   TicketStatus,
-  TicketType,
-  UserSummary
+  TicketType
 } from './models';
 
 export interface TicketFilters {
@@ -29,6 +30,8 @@ export interface TicketFilters {
   mine?: boolean;
   overdue?: boolean;
   includeArchived?: boolean;
+  createdFrom?: string;
+  createdTo?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -131,12 +134,35 @@ export class ApiService {
     return this.http.get<AssistantStatus>(`${this.api}/chatbot/status`);
   }
 
-  chatbotChat(message: string, history: ChatMessage[] = []) {
-    return this.http.post<ChatbotReply>(`${this.api}/chatbot/chat`, { message, history });
+  chatbotChat(message: string, history: ChatMessage[] = [], options?: { confirmTicket?: boolean; ticketDraft?: TicketDraft }) {
+    return this.http.post<ChatbotReply>(`${this.api}/chatbot/chat`, {
+      message,
+      history,
+      confirmTicket: options?.confirmTicket ?? false,
+      ticketDraft: options?.ticketDraft ?? null
+    });
   }
 
   chatbotCreateTicket(message: string) {
-    return this.http.post<ChatbotReply>(`${this.api}/chatbot/create-ticket`, { message, history: [] });
+    return this.http.post<ChatbotReply>(`${this.api}/chatbot/create-ticket`, { message, history: [], confirmTicket: false, ticketDraft: null });
+  }
+
+  profile() {
+    return this.http.get<UserSummary>(`${this.api}/auth/me`);
+  }
+
+  updateProfile(payload: { fullName: string; email: string }) {
+    return this.http.patch<UserSummary>(`${this.api}/auth/me`, payload);
+  }
+
+  changePassword(payload: { currentPassword: string; newPassword: string }) {
+    return this.http.patch(`${this.api}/auth/me/password`, payload);
+  }
+
+  uploadAvatar(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<UserSummary>(`${this.api}/auth/me/avatar`, form);
   }
 
   notifications() {

@@ -13,6 +13,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Comparator;
 import java.util.List;
@@ -26,17 +27,20 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final FileStorageService fileStorageService;
 
     public AuthService(UserRepository userRepository,
                        LoginHistoryRepository loginHistoryRepository,
                        PasswordEncoder passwordEncoder,
                        AuthenticationManager authenticationManager,
-                       JwtService jwtService) {
+                       JwtService jwtService,
+                       FileStorageService fileStorageService) {
         this.userRepository = userRepository;
         this.loginHistoryRepository = loginHistoryRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -127,8 +131,49 @@ public class AuthService {
         return loginHistoryRepository.findTop20ByUserIdOrderByLoginAtDesc(userId);
     }
 
+    @Transactional(readOnly = true)
+    public AuthDtos.UserSummary getProfile(UserAccount currentUser) {
+        return toUserSummary(currentUser);
+    }
+
+    @Transactional
+    public AuthDtos.UserSummary updateProfile(UserAccount currentUser, AuthDtos.ProfileUpdateRequest request) {
+        String email = request.email().toLowerCase();
+        userRepository.findByEmail(email).ifPresent(existing -> {
+            if (!existing.getId().equals(currentUser.getId())) {
+                throw new IllegalArgumentException("Email deja utilise");
+            }
+        });
+        currentUser.setFullName(request.fullName().trim());
+        currentUser.setEmail(email);
+        return toUserSummary(userRepository.save(currentUser));
+    }
+
+    @Transactional
+    public void changePassword(UserAccount currentUser, AuthDtos.PasswordChangeRequest request) {
+        if (!passwordEncoder.matches(request.currentPassword(), currentUser.getPasswordHash())) {
+            throw new IllegalArgumentException("Mot de passe actuel incorrect");
+        }
+        currentUser.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(currentUser);
+    }
+
+    @Transactional
+    public AuthDtos.UserSummary uploadAvatar(UserAccount currentUser, MultipartFile file) {
+        String url = fileStorageService.storeAvatar(currentUser.getId(), file);
+        currentUser.setAvatarUrl(url);
+        return toUserSummary(userRepository.save(currentUser));
+    }
+
     private AuthDtos.UserSummary toUserSummary(UserAccount user) {
-        return new AuthDtos.UserSummary(user.getId(), user.getFullName(), user.getEmail(), user.getRoles(), user.isActive(), user.getCreatedAt());
+        return new AuthDtos.UserSummary(
+                user.getId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getRoles(),
+                user.isActive(),
+                user.getCreatedAt(),
+                user.getAvatarUrl());
     }
 
     private boolean hasSupportRole(UserAccount user) {

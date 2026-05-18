@@ -157,6 +157,21 @@ import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType, UserS
               <option *ngFor="let agent of agents()" [value]="agent.id">{{ agent.fullName }}</option>
             </select>
           </div>
+          <div class="field">
+            <label for="date-from">Du</label>
+            <input id="date-from" type="date" [value]="dateFrom()" (change)="dateFrom.set($any($event.target).value)" />
+          </div>
+          <div class="field">
+            <label for="date-to">Au</label>
+            <input id="date-to" type="date" [value]="dateTo()" (change)="dateTo.set($any($event.target).value)" />
+          </div>
+        </div>
+
+        <div class="time-presets">
+          <button type="button" (click)="setPeriod('today')">Aujourd'hui</button>
+          <button type="button" (click)="setPeriod('week')">7 jours</button>
+          <button type="button" (click)="setPeriod('month')">30 jours</button>
+          <button type="button" (click)="setPeriod('all')">Tout</button>
         </div>
 
         <div class="filter-flags">
@@ -545,6 +560,28 @@ import { Ticket, TicketCategory, TicketPriority, TicketStatus, TicketType, UserS
         margin-top: 0.2rem;
         font-family: 'Sora', sans-serif;
         font-size: 1.35rem;
+      }
+
+      .time-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.5rem;
+      }
+
+      .time-presets button {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--brand-blue);
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.8rem;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .time-presets button:hover {
+        background: var(--brand-blue-soft);
       }
 
       .filter-flags {
@@ -954,6 +991,8 @@ export class TicketsPage implements OnInit {
   readonly mineOnly = signal(false);
   readonly overdueOnly = signal(false);
   readonly includeArchived = signal(false);
+  readonly dateFrom = signal('');
+  readonly dateTo = signal('');
 
   readonly totalTickets = computed(() => this.tickets().length);
   readonly openCount = computed(() => this.tickets().filter((ticket) => ticket.status === 'OUVERT').length);
@@ -1121,6 +1160,8 @@ export class TicketsPage implements OnInit {
     this.mineOnly.set(false);
     this.overdueOnly.set(false);
     this.includeArchived.set(false);
+    this.dateFrom.set('');
+    this.dateTo.set('');
     this.load();
   }
 
@@ -1260,7 +1301,36 @@ export class TicketsPage implements OnInit {
     if (this.includeArchived()) {
       filters.includeArchived = true;
     }
+    if (this.dateFrom()) {
+      filters.createdFrom = new Date(this.dateFrom() + 'T00:00:00').toISOString();
+    }
+    if (this.dateTo()) {
+      filters.createdTo = new Date(this.dateTo() + 'T23:59:59').toISOString();
+    }
     return filters;
+  }
+
+  setPeriod(period: 'today' | 'week' | 'month' | 'all'): void {
+    const now = new Date();
+    if (period === 'all') {
+      this.dateFrom.set('');
+      this.dateTo.set('');
+    } else if (period === 'today') {
+      const d = now.toISOString().slice(0, 10);
+      this.dateFrom.set(d);
+      this.dateTo.set(d);
+    } else if (period === 'week') {
+      const from = new Date(now);
+      from.setDate(from.getDate() - 7);
+      this.dateFrom.set(from.toISOString().slice(0, 10));
+      this.dateTo.set(now.toISOString().slice(0, 10));
+    } else {
+      const from = new Date(now);
+      from.setDate(from.getDate() - 30);
+      this.dateFrom.set(from.toISOString().slice(0, 10));
+      this.dateTo.set(now.toISOString().slice(0, 10));
+    }
+    this.load();
   }
 
   private loadSupportUsers(): void {

@@ -46,6 +46,22 @@ export class AuthService {
     return user.roles.some((r) => roles.includes(r));
   }
 
+  updateCurrentUser(user: UserSummary): void {
+    localStorage.setItem(this.userKey, JSON.stringify(user));
+    this.currentUser.set(user);
+  }
+
+  mediaUrl(path?: string | null): string {
+    if (!path) {
+      return '';
+    }
+    if (path.startsWith('http')) {
+      return path;
+    }
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    return isLocal ? `http://localhost:8080${path}` : path;
+  }
+
   private storeAuth(response: AuthResponse) {
     localStorage.setItem(this.tokenKey, response.token);
     localStorage.setItem(this.userKey, JSON.stringify(response.user));

@@ -76,7 +76,9 @@ public class TicketService {
                                                  Boolean assignedToMe,
                                                  Boolean mine,
                                                  Boolean overdue,
-                                                 Boolean includeArchived) {
+                                                 Boolean includeArchived,
+                                                 Instant createdFrom,
+                                                 Instant createdTo) {
         Instant now = Instant.now();
         boolean staff = hasStaffRole(currentUser);
         boolean canSeeArchived = staff && Boolean.TRUE.equals(includeArchived);
@@ -93,6 +95,8 @@ public class TicketService {
                 .filter(ticket -> !Boolean.TRUE.equals(assignedToMe) || hasAssignedAgent(ticket, currentUser.getId()))
                 .filter(ticket -> !Boolean.TRUE.equals(mine) || isMine(ticket, currentUser))
                 .filter(ticket -> !Boolean.TRUE.equals(overdue) || isSlaBreached(ticket, now))
+                .filter(ticket -> createdFrom == null || !ticket.getCreatedAt().isBefore(createdFrom))
+                .filter(ticket -> createdTo == null || !ticket.getCreatedAt().isAfter(createdTo))
                 .filter(ticket -> matchesSearch(ticket, search))
                 .sorted(Comparator
                         .comparing((Ticket ticket) -> isSlaBreached(ticket, now)).reversed()
@@ -323,6 +327,17 @@ public class TicketService {
         throw new IllegalArgumentException("Ticket introuvable");
     }
 
+    private AuthDtos.UserSummary toUserSummary(UserAccount user) {
+        return new AuthDtos.UserSummary(
+                user.getId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getRoles(),
+                user.isActive(),
+                user.getCreatedAt(),
+                user.getAvatarUrl());
+    }
+
     private boolean hasStaffRole(UserAccount user) {
         return user.getRoles().contains(Role.AGENT)
                 || user.getRoles().contains(Role.SUPERVISEUR)
@@ -334,23 +349,11 @@ public class TicketService {
                 .map(c -> new AuthDtos.CommentView(c.getId(), c.getAuthor().getFullName(), c.getMessage(), c.getCreatedAt()))
                 .toList();
 
-        AuthDtos.UserSummary client = new AuthDtos.UserSummary(
-                ticket.getClient().getId(),
-                ticket.getClient().getFullName(),
-                ticket.getClient().getEmail(),
-                ticket.getClient().getRoles(),
-                ticket.getClient().isActive(),
-                ticket.getClient().getCreatedAt());
+        AuthDtos.UserSummary client = toUserSummary(ticket.getClient());
 
         AuthDtos.UserSummary agent = null;
         if (ticket.getAssignedAgent() != null) {
-            agent = new AuthDtos.UserSummary(
-                    ticket.getAssignedAgent().getId(),
-                    ticket.getAssignedAgent().getFullName(),
-                    ticket.getAssignedAgent().getEmail(),
-                    ticket.getAssignedAgent().getRoles(),
-                    ticket.getAssignedAgent().isActive(),
-                    ticket.getAssignedAgent().getCreatedAt());
+            agent = toUserSummary(ticket.getAssignedAgent());
         }
 
         return new AuthDtos.TicketView(
